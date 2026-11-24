@@ -28,6 +28,7 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  fwd:'<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
  down:'<path d="m6 9 6 6 6-6"/>',left:'<path d="m15 18-6-6 6-6"/>',up:'<path d="m18 15-6-6-6 6"/>',
  plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ download:'<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'};
 const svg=k=>`<svg viewBox="0 0 24 24" class="i" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(e=>e.insertAdjacentHTML('afterbegin',svg(e.dataset.ic)));
@@ -56,6 +57,10 @@ function allTracks(){const m={};for(const a of CAT.albums)for(const t of a.track
 function verOf(a){return (a&&a.versions||[]).find(v=>v.id===ver)||(a&&a.versions||[])[0]}
 function trackSrc(t){if(t.blob){if(!urls[t.id])urls[t.id]=URL.createObjectURL(t.blob);return urls[t.id]}
  const a=t.album,v=verOf(a); if(a&&v&&!v.local&&a.media) return `${a.media}/2ch/${String(t.n).padStart(2,'0')}_${v.id}.${a.ext||'m4a'}`; return t.src}
+// 내려받기(웹 앱만): 곡 하나 = 지금 고른 반주 파일, 앨범 전체 = catalog의 zip
+const canDL=()=>window.BUILD==='웹';
+function dlName(t,a){const v=verOf(a),src=trackSrc({...t,album:a}),ext=(src.split('?')[0].match(/\.(\w+)$/)||[])[1]||'m4a';
+ return `${String(t.n).padStart(2,'0')} ${t.kind?t.kind+' ':''}${t.title}${v?' ('+v.name+')':''}.${ext}`.replace(/[\\/:*?"<>|]/g,'')}
 function verBar(a){const vs=(a.versions||[]).filter(v=>v.local||a.media); if(vs.length<2)return '';
  return `<div class="verrow"><span class="lbl">반주 고르기</span><div class="seg" role="group" aria-label="반주 고르기">${vs.map(v=>`<button data-ver="${v.id}" aria-pressed="${verOf(a).id===v.id}">${esc(v.name)}</button>`).join('')}</div></div>`}
 function shuffled(l,keep){const r=l.filter((_,i)=>i!==keep);for(let i=r.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[r[i],r[j]]=[r[j],r[i]]}return keep>=0?[l[keep],...r]:r}
@@ -72,12 +77,12 @@ function render(){ pickBar();
   albumId=a.id; let h='';
   if(CAT.albums.length>1) h+=`<div class="albums">${CAT.albums.map(x=>`<button data-alb="${x.id}" aria-pressed="${x.id===a.id}"><img src="${esc(x.cover)}" alt=""><span>${esc(x.title)}</span></button>`).join('')}</div>`;
   const total=a.tracks.reduce((s,t)=>s+(t.dur||0),0);
-  h+=`<section class="hero"><img src="${esc(a.cover)}" alt="${esc(a.title)} 표지"><div><h1>${esc(a.title)}</h1><p>${esc(a.sub||'')}</p><p>${esc(a.artist||'')} · ${a.tracks.length}곡 · ${Math.round(total/60)}분</p><div class="bar" style="margin:0"><button class="pill" data-playalb="${a.id}">${svg('play')}차례로</button><button class="ghost" data-shufalb="${a.id}">${svg('shuffle')}섞어서</button></div></div></section>${verBar(a)}`;
+  h+=`<section class="hero"><img src="${esc(a.cover)}" alt="${esc(a.title)} 표지"><div><h1>${esc(a.title)}</h1><p>${esc(a.sub||'')}</p><p>${esc(a.artist||'')} · ${a.tracks.length}곡 · ${Math.round(total/60)}분</p><div class="bar" style="margin:0"><button class="pill" data-playalb="${a.id}">${svg('play')}차례로</button><button class="ghost" data-shufalb="${a.id}">${svg('shuffle')}섞어서</button>${canDL()&&a.zip?`<a class="ghost dlall" href="${esc(a.zip)}" download>${svg('download')}앨범 전체 내려받기</a>`:''}</div>${canDL()&&a.zip?`<p class="dlnote">${esc(a.zipNote||'')}</p>`:''}</div></section>${verBar(a)}`;
   let part=null;
   for(const t of a.tracks){
    if(t.part&&t.part!==part){part=t.part;h+=`<h2 class="part"><span>${esc(part)}</span><button class="partplay" data-playpart="${esc(part)}" data-from="${a.id}" aria-label="${esc(part)} 듣기">${svg('play')}이 부 듣기</button></h2>`}
    const now=cur&&cur.id===t.id;
-   h+=`<div class="row${now?' now':''}">${numCell(t.id,t.n)}<button class="t" data-play="${t.id}" data-from="${a.id}"><b>${t.kind?esc(t.kind)+' ':''}「${esc(t.title)}」</b><small>${fmt(t.dur)}</small></button><button class="icon" data-desc="${t.id}" aria-label="곡 설명">${svg('info')}</button><button class="icon" data-add="${t.id}" aria-label="재생 목록에 넣기">${svg('plus')}</button>`;
+   h+=`<div class="row${now?' now':''}">${numCell(t.id,t.n)}<button class="t" data-play="${t.id}" data-from="${a.id}"><b>${t.kind?esc(t.kind)+' ':''}「${esc(t.title)}」</b><small>${fmt(t.dur)}</small></button><button class="icon" data-desc="${t.id}" aria-label="곡 설명">${svg('info')}</button><button class="icon" data-add="${t.id}" aria-label="재생 목록에 넣기">${svg('plus')}</button>${canDL()&&t.src?`<a class="icon" href="${esc(trackSrc({...t,album:a}))}" download="${esc(dlName(t,a))}" aria-label="이 곡 내려받기" title="이 곡 내려받기">${svg('download')}</a>`:''}`;
    if(openDesc===t.id) h+=descHtml(t);
    h+='</div>';
   }

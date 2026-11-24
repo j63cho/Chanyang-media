@@ -61,7 +61,7 @@ h2.part{display:flex;align-items:center;justify-content:space-between;gap:8px;fo
 .partplay .i{width:14px;height:14px}
 
 /* 곡 줄 */
-.row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;gap:4px;border-bottom:1px solid var(--line);border-radius:12px}
+.row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto auto;align-items:center;gap:4px;border-bottom:1px solid var(--line);border-radius:12px}
 .row .num{color:var(--soft);font-variant-numeric:tabular-nums;text-align:center}
 .row .t{padding:10px 0;text-align:left;justify-content:flex-start;display:block;border-radius:0}
 .row .t b{display:block;font-weight:500}
@@ -74,6 +74,9 @@ h2.part{display:flex;align-items:center;justify-content:space-between;gap:8px;fo
 body.paused .eq i{animation-play-state:paused}
 @keyframes eq{0%,100%{height:4px}50%{height:15px}}
 .icon{width:44px;color:var(--soft)}
+a.icon,a.ghost{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;text-decoration:none;color:inherit}
+a.icon{color:var(--soft)}
+.dlnote{font-size:13px!important;margin:6px 0 0!important}
 .icon .i{width:20px;height:20px}
 .desc{grid-column:2/-1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 8px 12px 0;font-size:15px}
 .desc .meta{color:var(--soft);font-size:13px;margin-bottom:8px}
