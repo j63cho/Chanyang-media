@@ -131,7 +131,7 @@ function descHtml(t){
 function setQueue(list,i,src,mix){const o=list.slice();let l=o;if(mix||shuf){l=shuffled(o,mix?-1:i);i=0;l.orig=o;o.src=src}queue=l;queue.src=src;qi=i;load(true)}
 function load(play){
  const t=queue[qi]; if(!t)return;
- au.src=trackSrc(t); partsSetup(t); LS.set('last',{id:t.id,src:queue.src,ids:queue.map(x=>x.id)});
+ setSrc(t); partsSetup(t); LS.set('last',{id:t.id,src:queue.src,ids:queue.map(x=>x.id)});
  $('#ptitle').textContent=label(t); $('#psub').textContent=sub(t);
  $('#pimg').src=t.album?t.album.cover:(CAT.albums[0]?.cover||'');
  meta(t); if(play) au.play().catch(()=>{}); render(); if(lyrOpen)showLyr(); syncNP();
@@ -172,7 +172,7 @@ $('#brep').onclick=()=>{repeat={all:'one',one:'off',off:'all'}[repeat];LS.set('r
 $('#binfo').onclick=()=>{const t=queue[qi];if(!t)return;sheet(`<h3>${esc(label(t))}</h3>${t.album?descHtml(t):'<p>내 곡입니다.</p>'}<button class="pill" data-close>닫기</button>`)};
 
 function setVer(id){if(ver===id)return;ver=id;LS.set('ver',ver);const t=queue[qi];
- if(t&&t.album){const pos=au.currentTime,pl=!au.paused;au.src=trackSrc(t);au.addEventListener('loadedmetadata',()=>{au.currentTime=pos;if(pl)au.play().catch(()=>{})},{once:true});$('#psub').textContent=sub(t)}
+ if(t&&t.album){const pos=au.currentTime,pl=!au.paused;setSrc(t);au.addEventListener('loadedmetadata',()=>{au.currentTime=pos;if(pl)au.play().catch(()=>{})},{once:true});$('#psub').textContent=sub(t)}
  render();toast('반주: '+(verOf(album(albumId))?.name||''))}
 au.addEventListener('error',()=>{const t=queue[qi];if(t&&t.album&&!verOf(t.album).local)toast('이 반주는 인터넷 연결이 필요합니다')});
 $('#bshuf').onclick=()=>{shuf=!shuf;LS.set('shuf',shuf);$('#bshuf').classList.toggle('on',shuf);
@@ -318,6 +318,17 @@ $('#pick').addEventListener('change',async e=>{
 // catalog 곡에 parts가 있으면: 반주 파일을 au(기준 시계)로 틀고, 성부 파일들은 따로 틀면서 au에 박자를 맞춤.
 // 성부마다 끔·작게·보통. 파일: {media}/parts/{곡번호}_{k}.m4a
 let partsOn=LS.get('partsOn',false), PL=LS.get('partLv',{}), PX=[], fadeF=1;
+// 아이폰·아이패드는 소리 크기(volume)를 바꿀 수 없으므로, 「작게」가 필요할 때만 Web Audio 볼륨 조절(GainNode)로 돌림
+const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+let AC=null; const GN=new Map();
+function gainFor(el){if(GN.has(el))return GN.get(el);
+ try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();el.crossOrigin='anonymous';const g=AC.createGain();AC.createMediaElementSource(el).connect(g).connect(AC.destination);GN.set(el,g);return g}catch(e){return null}}
+function setVol(el,v){v=Math.max(0,Math.min(1,v));el.muted=v===0;
+ if(GN.has(el)||(IOS&&v>0&&v<1)){const g=gainFor(el);if(g){try{el.volume=1}catch(e){}g.gain.value=v;if(AC.state!=='running')AC.resume().catch(()=>{});return}}
+ try{el.volume=v}catch(e){}}
+function setSrc(t){const s=trackSrc(t);if(partOn(t)||GN.has(au))au.crossOrigin='anonymous';else au.removeAttribute('crossorigin');au.src=s}
+au.addEventListener('play',()=>{if(AC&&AC.state!=='running')AC.resume().catch(()=>{})});
+document.addEventListener('visibilitychange',()=>{if(AC&&!au.paused&&AC.state!=='running')AC.resume().catch(()=>{})});
 const LV={0:'끔',1:'작게',2:'보통'}, LVV=[0,0.3,1];
 const hasParts=t=>!!(t&&t.album&&t.album.media&&Array.isArray(t.parts)&&t.parts.length);
 const partOn=t=>partsOn&&hasParts(t);
@@ -325,11 +336,11 @@ const partUrl=(t,k)=>`${t.album.media}/parts/${String(t.n).padStart(2,'0')}_${k}
 const lvOf=(t,k)=>{const v=(PL[t.id]||{})[k];return v==null?2:v};
 function accVol(t){return LVV[lvOf(t,'acc')]}
 function applyPartVols(){const t=queue[qi];
- if(partOn(t)){const a=accVol(t);au.muted=a===0;au.volume=Math.max(0,Math.min(1,a*fadeF))}else{au.muted=false;au.volume=fadeF}
- for(const x of PX){const v=LVV[lvOf(t,x.k)]*fadeF;x.el.muted=v===0;x.el.volume=Math.max(0,Math.min(1,v))}}
+ setVol(au,partOn(t)?accVol(t)*fadeF:fadeF);
+ for(const x of PX)setVol(x.el,LVV[lvOf(t,x.k)]*fadeF)}
 function partsStop(){for(const x of PX){try{x.el.pause();x.el.removeAttribute('src');x.el.load()}catch(e){}}PX=[]}
 function partsSetup(t){partsStop();if(!partOn(t))return;
- for(const p of t.parts){if(p.k==='acc')continue;const el=new Audio();el.preload='auto';el.src=partUrl(t,p.k);
+ for(const p of t.parts){if(p.k==='acc')continue;const el=new Audio();el.preload='auto';el.crossOrigin='anonymous';el.src=partUrl(t,p.k);
   el.addEventListener('playing',()=>partSync());PX.push({k:p.k,el})}
  applyPartVols()}
 function partSync(force){if(!PX.length)return;const c=au.currentTime;
@@ -344,7 +355,7 @@ au.addEventListener('seeked',()=>partSync(true));au.addEventListener('timeupdate
 au.addEventListener('ended',()=>{for(const x of PX)x.el.pause()});
 setInterval(()=>{if(!au.paused)partSync()},250);
 function setPartsOn(v){const t=queue[qi];partsOn=v;LS.set('partsOn',v);
- if(t&&t.album&&hasParts(t)){const pos=au.currentTime,pl=!au.paused;au.src=trackSrc(t);partsSetup(t);
+ if(t&&t.album&&hasParts(t)){const pos=au.currentTime,pl=!au.paused;setSrc(t);partsSetup(t);
   au.addEventListener('loadedmetadata',()=>{au.currentTime=pos;if(pl)au.play().catch(()=>{})},{once:true});$('#psub').textContent=sub(t)}
  applyPartVols();syncNP();partsSheet();toast(v?'성부 듣기: 켬':'성부 듣기: 끔 (보통 듣기)')}
 function setLv(k,v){const t=queue[qi];if(!t)return;PL[t.id]=PL[t.id]||{};PL[t.id][k]=v;LS.set('partLv',PL);applyPartVols();partsSheet()}
@@ -435,7 +446,7 @@ au.addEventListener('canplaythrough',warmNext);
  if(!album(albumId))albumId=CAT.albums[0]?.id;
  const last=LS.get('last',null);
  if(last){const m=allTracks();const l=(last.ids||[]).map(id=>m[id]).filter(Boolean);const i=l.findIndex(t=>t.id===last.id);
-  if(i>=0){queue=l;queue.src=last.src;qi=i;const t=l[i];au.src=trackSrc(t);partsSetup(t);$('#ptitle').textContent=label(t);$('#psub').textContent=sub(t);$('#pimg').src=t.album?t.album.cover:'';meta(t);
+  if(i>=0){queue=l;queue.src=last.src;qi=i;const t=l[i];setSrc(t);partsSetup(t);$('#ptitle').textContent=label(t);$('#psub').textContent=sub(t);$('#pimg').src=t.album?t.album.cover:'';meta(t);
    const p=LS.get('pos',0);au.addEventListener('loadedmetadata',()=>{if(p<(au.duration||0)-3)au.currentTime=p},{once:true})}}
  if(!$('#pimg').getAttribute('src'))$('#pimg').src=CAT.albums[0]?.cover||'';
  render();
