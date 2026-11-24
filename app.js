@@ -29,6 +29,7 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  down:'<path d="m6 9 6 6 6-6"/>',left:'<path d="m15 18-6-6 6-6"/>',up:'<path d="m18 15-6-6-6 6"/>',
  plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',
  download:'<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+ parts:'<path d="M4 20V10M9 20V4M14 20v-8M19 20V7"/>',
  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'};
 const svg=k=>`<svg viewBox="0 0 24 24" class="i" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(e=>e.insertAdjacentHTML('afterbegin',svg(e.dataset.ic)));
@@ -56,6 +57,7 @@ const album=id=>CAT.albums.find(a=>a.id===id);
 function allTracks(){const m={};for(const a of CAT.albums)for(const t of a.tracks)m[t.id]={...t,album:a};for(const s of mine)m[s.id]=s;return m}
 function verOf(a){return (a&&a.versions||[]).find(v=>v.id===ver)||(a&&a.versions||[])[0]}
 function trackSrc(t){if(t.blob){if(!urls[t.id])urls[t.id]=URL.createObjectURL(t.blob);return urls[t.id]}
+ if(partOn(t))return partUrl(t,'acc');
  const a=t.album,v=verOf(a); if(a&&v&&!v.local&&a.media) return `${a.media}/2ch/${String(t.n).padStart(2,'0')}_${v.id}.${a.ext||'m4a'}`; return t.src}
 // 내려받기(웹 앱만): 곡 하나 = 지금 고른 반주 파일, 앨범 전체 = catalog의 zip
 const canDL=()=>window.BUILD==='웹';
@@ -65,7 +67,7 @@ function verBar(a){const vs=(a.versions||[]).filter(v=>v.local||a.media); if(vs.
  return `<div class="verrow"><span class="lbl">반주 고르기</span><div class="seg" role="group" aria-label="반주 고르기">${vs.map(v=>`<button data-ver="${v.id}" aria-pressed="${verOf(a).id===v.id}">${esc(v.name)}</button>`).join('')}</div></div>`}
 function shuffled(l,keep){const r=l.filter((_,i)=>i!==keep);for(let i=r.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[r[i],r[j]]=[r[j],r[i]]}return keep>=0?[l[keep],...r]:r}
 function label(t){return t.album?`${String(t.n).padStart(2,'0')}. ${t.kind?t.kind+' ':''}「${t.title}」`:t.title}
-function sub(t){if(!t.album)return t.alb?'내 곡 · '+t.alb:'내 곡';const v=verOf(t.album);return `${t.part||''} · ${v&&(t.album.versions||[]).length>1?v.name+' · ':''}${t.album.title}`}
+function sub(t){if(!t.album)return t.alb?'내 곡 · '+t.alb:'내 곡';const v=verOf(t.album);return `${t.part||''} · ${partOn(t)?'성부 듣기 · ':v&&(t.album.versions||[]).length>1?v.name+' · ':''}${t.album.title}`}
 function toast(m){const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),1800)}
 
 // ---------- 화면 ----------
@@ -129,7 +131,7 @@ function descHtml(t){
 function setQueue(list,i,src,mix){const o=list.slice();let l=o;if(mix||shuf){l=shuffled(o,mix?-1:i);i=0;l.orig=o;o.src=src}queue=l;queue.src=src;qi=i;load(true)}
 function load(play){
  const t=queue[qi]; if(!t)return;
- au.src=trackSrc(t); LS.set('last',{id:t.id,src:queue.src,ids:queue.map(x=>x.id)});
+ au.src=trackSrc(t); partsSetup(t); LS.set('last',{id:t.id,src:queue.src,ids:queue.map(x=>x.id)});
  $('#ptitle').textContent=label(t); $('#psub').textContent=sub(t);
  $('#pimg').src=t.album?t.album.cover:(CAT.albums[0]?.cover||'');
  meta(t); if(play) au.play().catch(()=>{}); render(); if(lyrOpen)showLyr(); syncNP();
@@ -312,6 +314,56 @@ $('#pick').addEventListener('change',async e=>{
 });
 
 
+// ---------- 성부 듣기 (연습) ----------
+// catalog 곡에 parts가 있으면: 반주 파일을 au(기준 시계)로 틀고, 성부 파일들은 따로 틀면서 au에 박자를 맞춤.
+// 성부마다 끔·작게·보통. 파일: {media}/parts/{곡번호}_{k}.m4a
+let partsOn=LS.get('partsOn',false), PL=LS.get('partLv',{}), PX=[], fadeF=1;
+const LV={0:'끔',1:'작게',2:'보통'}, LVV=[0,0.3,1];
+const hasParts=t=>!!(t&&t.album&&t.album.media&&Array.isArray(t.parts)&&t.parts.length);
+const partOn=t=>partsOn&&hasParts(t);
+const partUrl=(t,k)=>`${t.album.media}/parts/${String(t.n).padStart(2,'0')}_${k}.${t.album.partExt||'m4a'}`;
+const lvOf=(t,k)=>{const v=(PL[t.id]||{})[k];return v==null?2:v};
+function accVol(t){return LVV[lvOf(t,'acc')]}
+function applyPartVols(){const t=queue[qi];
+ if(partOn(t)){const a=accVol(t);au.muted=a===0;au.volume=Math.max(0,Math.min(1,a*fadeF))}else{au.muted=false;au.volume=fadeF}
+ for(const x of PX){const v=LVV[lvOf(t,x.k)]*fadeF;x.el.muted=v===0;x.el.volume=Math.max(0,Math.min(1,v))}}
+function partsStop(){for(const x of PX){try{x.el.pause();x.el.removeAttribute('src');x.el.load()}catch(e){}}PX=[]}
+function partsSetup(t){partsStop();if(!partOn(t))return;
+ for(const p of t.parts){if(p.k==='acc')continue;const el=new Audio();el.preload='auto';el.src=partUrl(t,p.k);
+  el.addEventListener('playing',()=>partSync());PX.push({k:p.k,el})}
+ applyPartVols()}
+function partSync(force){if(!PX.length)return;const c=au.currentTime;
+ for(const x of PX){const el=x.el;
+  if(au.paused){if(!el.paused)el.pause();continue}
+  if(el.paused&&!el.ended){try{el.currentTime=c}catch(e){}el.play().catch(()=>{});continue}
+  const d=el.currentTime-c, ad=Math.abs(d);
+  if(ad>(force?0.15:0.3)){el.playbackRate=1;try{el.currentTime=c+0.03}catch(e){}}   // 많이 어긋나면 그 자리로 옮김
+  else el.playbackRate=ad>0.02?Math.max(0.94,Math.min(1.06,1-d*0.6)):1}}            // 조금 어긋나면 살짝 빠르게·느리게 해서 소리 끊김 없이 맞춤
+au.addEventListener('play',()=>partSync(true));au.addEventListener('pause',()=>partSync());
+au.addEventListener('seeked',()=>partSync(true));au.addEventListener('timeupdate',()=>partSync());
+au.addEventListener('ended',()=>{for(const x of PX)x.el.pause()});
+setInterval(()=>{if(!au.paused)partSync()},250);
+function setPartsOn(v){const t=queue[qi];partsOn=v;LS.set('partsOn',v);
+ if(t&&t.album&&hasParts(t)){const pos=au.currentTime,pl=!au.paused;au.src=trackSrc(t);partsSetup(t);
+  au.addEventListener('loadedmetadata',()=>{au.currentTime=pos;if(pl)au.play().catch(()=>{})},{once:true});$('#psub').textContent=sub(t)}
+ applyPartVols();syncNP();partsSheet();toast(v?'성부 듣기: 켬':'성부 듣기: 끔 (보통 듣기)')}
+function setLv(k,v){const t=queue[qi];if(!t)return;PL[t.id]=PL[t.id]||{};PL[t.id][k]=v;LS.set('partLv',PL);applyPartVols();partsSheet()}
+function soloPart(k){const t=queue[qi];if(!t)return;const o={};for(const p of t.parts)o[p.k]=p.k===k||p.k==='acc'?2:1;PL[t.id]=o;LS.set('partLv',PL);applyPartVols();partsSheet();
+ toast(`「${t.parts.find(p=>p.k===k).name}」 크게, 다른 성부는 작게`)}
+function partsSheet(){const t=queue[qi];if(!hasParts(t)){if($('#sheet').classList.contains('open')&&$('#partsBox'))$('#sheet').classList.remove('open');return}
+ const rows=t.parts.map(p=>{const v=lvOf(t,p.k);return `<div class="prow"><button class="pname" data-psolo="${p.k}"${p.k==='acc'||!partsOn?' disabled':''}>${esc(p.name)}</button><div class="seg" role="group" aria-label="${esc(p.name)} 소리">${[0,1,2].map(i=>`<button data-plv="${p.k}|${i}" aria-pressed="${v===i}"${partsOn?'':' disabled'}>${LV[i]}</button>`).join('')}</div></div>`}).join('');
+ const h=`<div id="partsBox"><h3>성부 듣기 · ${esc(label(t))}</h3>
+ <div class="seg wide" role="group" aria-label="성부 듣기"><button data-pon="1" aria-pressed="${partsOn}">성부 듣기 켜기</button><button data-pon="0" aria-pressed="${!partsOn}">보통 듣기</button></div>
+ <p class="phelp">${partsOn?'성부 이름을 누르면 그 성부만 크게, 다른 성부는 작게 들립니다.':'켜면 성부마다 끄고 켜며 들을 수 있습니다 (인터넷 연결 필요).'}</p>${rows}
+ <div class="bar"><button class="ghost" data-pall="1"${partsOn?'':' disabled'}>모두 보통으로</button><button class="pill" data-close>닫기</button></div></div>`;
+ if($('#sheet').classList.contains('open')&&$('#partsBox'))$('#sheetIn').innerHTML=h;else sheet(h)}
+$('#sheet').addEventListener('click',e=>{const t=queue[qi];
+ const on=e.target.closest('[data-pon]');if(on){const v=on.dataset.pon==='1';if(v!==partsOn)setPartsOn(v);return}
+ const lv=e.target.closest('[data-plv]');if(lv){const [k,v]=lv.dataset.plv.split('|');setLv(k,+v);return}
+ const so=e.target.closest('[data-psolo]');if(so){soloPart(so.dataset.psolo);return}
+ if(e.target.closest('[data-pall]')&&t){delete PL[t.id];LS.set('partLv',PL);applyPartVols();partsSheet()}});
+$('#npParts').onclick=()=>partsSheet();
+
 // ---------- 큰 재생 화면 ----------
 let npOpen=false;
 function syncNP(){if(!npOpen)return;const t=queue[qi];
@@ -321,6 +373,7 @@ function syncNP(){if(!npOpen)return;const t=queue[qi];
  const d=au.duration||0;$('#npCur').textContent=fmt(au.currentTime);$('#npDur').textContent=fmt(d);if(d&&!npSeeking)$('#npPos').value=au.currentTime/d*1000;
  $('#npPlay').innerHTML=svg(au.paused?'play':'pause');$('#npPlay').setAttribute('aria-label',au.paused?'재생':'멈춤');
  $('#npShuf').classList.toggle('on',shuf);$('#npRep').innerHTML=svg(repeat==='one'?'repeat1':'repeat')+({all:'전체 반복',one:'한 곡 반복',off:'반복 끔'})[repeat];$('#npRep').classList.toggle('on',repeat!=='off');
+ const hp=hasParts(t);$('#npParts').hidden=!hp;if(hp){$('#npParts').innerHTML=svg('parts')+(partsOn?'성부 켬':'성부');$('#npParts').classList.toggle('on',partsOn)}
  $('#npSleep').innerHTML=svg('moon')+(sleepAt?`${Math.max(1,Math.ceil((sleepAt-Date.now())/60000))}분 뒤`:sleepEnd?'곡 끝나면':'타이머');$('#npSleep').classList.toggle('on',!!(sleepAt||sleepEnd))}
 function openNP(){closeLyr();npOpen=true;$('#np').classList.add('open');syncNP()}
 function closeNP(){npOpen=false;$('#np').classList.remove('open')}
@@ -338,13 +391,13 @@ for(const ev of ['play','pause','timeupdate','loadedmetadata','emptied'])au.addE
 
 // ---------- 잠들기 타이머 ----------
 let sleepAt=0,sleepEnd=false;
-function setSleep(m){sleepEnd=m==='end';sleepAt=typeof m==='number'?Date.now()+m*60000:0;au.volume=1;
+function setSleep(m){sleepEnd=m==='end';sleepAt=typeof m==='number'?Date.now()+m*60000:0;fadeF=1;applyPartVols();
  $('#sheet').classList.remove('open');syncNP();toast(m==='end'?'이 곡이 끝나면 멈춥니다':m?`${m}분 뒤에 멈춥니다`:'잠들기 타이머를 껐습니다')}
 function sleepTick(){if(!sleepAt)return;const left=sleepAt-Date.now();
- if(left<=0){sleepAt=0;au.pause();au.volume=1;syncNP();toast('잠들기 타이머: 멈췄습니다');return}
- au.volume=left<10000?Math.max(0,left/10000):1;} // 마지막 10초는 소리를 천천히 줄임
+ if(left<=0){sleepAt=0;au.pause();fadeF=1;applyPartVols();syncNP();toast('잠들기 타이머: 멈췄습니다');return}
+ fadeF=left<10000?Math.max(0,left/10000):1;applyPartVols();} // 마지막 10초는 소리를 천천히 줄임
 setInterval(sleepTick,1000);au.addEventListener('timeupdate',sleepTick);
-au.addEventListener('play',()=>{if(!sleepAt)au.volume=1});
+au.addEventListener('play',()=>{if(!sleepAt){fadeF=1;applyPartVols()}});
 $('#npSleep').onclick=()=>sheet(`<h3>잠들기 타이머</h3><p>정한 때가 되면 소리를 천천히 줄이고 멈춥니다.</p>${[15,30,45,60,90].map(m=>`<button class="opt" data-sleep="${m}">${m}분 뒤</button>`).join('')}<button class="opt" data-sleep="end">이 곡이 끝나면</button>${sleepAt||sleepEnd?'<button class="opt" data-sleep="0">타이머 끄기</button>':''}<button class="ghost" data-close style="margin-top:10px">닫기</button>`);
 $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-sleep]');if(!b)return;const v=b.dataset.sleep;setSleep(v==='end'?'end':+v)});
 
@@ -382,7 +435,7 @@ au.addEventListener('canplaythrough',warmNext);
  if(!album(albumId))albumId=CAT.albums[0]?.id;
  const last=LS.get('last',null);
  if(last){const m=allTracks();const l=(last.ids||[]).map(id=>m[id]).filter(Boolean);const i=l.findIndex(t=>t.id===last.id);
-  if(i>=0){queue=l;queue.src=last.src;qi=i;const t=l[i];au.src=trackSrc(t);$('#ptitle').textContent=label(t);$('#psub').textContent=sub(t);$('#pimg').src=t.album?t.album.cover:'';meta(t);
+  if(i>=0){queue=l;queue.src=last.src;qi=i;const t=l[i];au.src=trackSrc(t);partsSetup(t);$('#ptitle').textContent=label(t);$('#psub').textContent=sub(t);$('#pimg').src=t.album?t.album.cover:'';meta(t);
    const p=LS.get('pos',0);au.addEventListener('loadedmetadata',()=>{if(p<(au.duration||0)-3)au.currentTime=p},{once:true})}}
  if(!$('#pimg').getAttribute('src'))$('#pimg').src=CAT.albums[0]?.cover||'';
  render();

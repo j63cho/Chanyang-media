@@ -123,9 +123,16 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px;margin:0}
 .npctl .skip small{position:absolute;font-size:10px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-38%)}
 .npctl .big{width:84px;height:84px;background:var(--gold);color:var(--on);box-shadow:0 10px 26px color-mix(in srgb,var(--gold) 40%,transparent)}
 .npctl .big .i{width:36px;height:36px}
-.npmore{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;width:100%;max-width:560px;margin-top:6px}
+.npmore{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;width:100%;max-width:560px;margin-top:6px}
 .npmore button{flex-direction:column;gap:3px;font-size:12.5px;color:var(--soft);padding:8px 0;border-radius:14px;min-height:62px}
 .npmore button.on{color:var(--gold);background:var(--card);font-weight:700}
+.npmore button[hidden]{display:none}
+.prow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.prow .pname{font-weight:700;font-size:16px;padding:0 6px;min-width:84px;justify-content:flex-start}
+.prow .seg{margin:0}.prow .seg button{padding:0 14px}
+.seg.wide{width:100%}.seg.wide button{flex:1}
+.phelp{color:var(--soft);font-size:14px;margin:6px 0}
+#partsBox button:disabled{opacity:.45}
 
 /* 가사·악보 */
 .lyr{position:fixed;inset:0;z-index:7;background:var(--bg);overflow:auto;display:none;padding:calc(4px + env(safe-area-inset-top)) max(3vw,10px) 24px}
@@ -209,7 +216,7 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px;margin:0}
   <button id="npFwd" class="skip" data-ic="fwd" aria-label="10초 앞으로"><small>10</small></button>
  </div>
  <div class="npmore">
-  <button id="npShuf" data-ic="shuffle">섞기</button><button id="npRep"></button><button id="npLyr" data-ic="lyrics">가사·악보</button><button id="npSleep"></button><button id="npInfo" data-ic="info">곡 설명</button>
+  <button id="npShuf" data-ic="shuffle">섞기</button><button id="npRep"></button><button id="npLyr" data-ic="lyrics">가사·악보</button><button id="npSleep"></button><button id="npInfo" data-ic="info">곡 설명</button><button id="npParts" hidden></button>
  </div>
 </section>
 <section class="lyr" id="lyr" aria-label="가사"><div class="lyrtop"><button id="lyrClose" class="ghost" data-ic="left">닫기</button><span id="lmodes"></span></div><div class="lyrin serif" id="lyrIn"></div></section>
