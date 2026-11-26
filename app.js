@@ -39,6 +39,7 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
  star:'<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.3l1.1-6.2L3 9.7l6.2-.9z"/>',
  radio:'<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="m7 8 10-5"/><circle cx="15.5" cy="14" r="2.8"/><path d="M6.5 12h3M6.5 16h3"/>',
+ share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'};
 const svg=k=>`<svg viewBox="0 0 24 24" class="i" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(e=>e.insertAdjacentHTML('afterbegin',svg(e.dataset.ic)));
@@ -608,6 +609,42 @@ $('#view').addEventListener('click',e=>{const b=e.target.closest('[data-radio]')
 setInterval(()=>{if(tab==='radio'&&!npOpen&&!lyrOpen&&!$('#sheet').classList.contains('open'))render()},20000);
 au.addEventListener('play',()=>{if(tab==='radio')render()});au.addEventListener('pause',()=>{if(tab==='radio')render()});
 
+// ---------- 이 곡 링크 보내기 (성가대 연습 안내용) ----------
+// 링크: 친구용 웹판 주소 + ?s=곡&t=초&v=반주&p=성부&m=화면 → 누르면 그 곡·그 자리·그 성부가 바로 준비됨
+const SHARE_BASE='https://j63cho.github.io/Chanyang-media/';
+function shareSheet(){const t=queue[qi];if(!t||!t.album){toast('앨범 곡을 틀고 눌러 주세요');return}
+ const v=verOf(t.album),now=Math.floor(au.currentTime||0),hp=hasParts(t);
+ const parts=hp?t.parts.filter(x=>x.k!=='acc'):[];
+ sheet(`<h3>${svg('share')} 이 곡 링크 보내기</h3><p>${esc(label(t))}</p>
+ <p class="setrow">어디부터</p><div class="seg" id="shT"><button data-sh="t:0" aria-pressed="${now<5}">처음부터</button><button data-sh="t:${now}" aria-pressed="${now>=5}">지금 자리 ${fmt(now)}부터</button></div>
+ ${hp?`<p class="setrow">크게 들을 성부</p><div class="seg wrap" id="shP"><button data-sh="p:" aria-pressed="true">없음</button>${parts.map(x=>`<button data-sh="p:${x.k}" aria-pressed="false">${esc(x.name)}</button>`).join('')}</div>`:''}
+ <p class="setrow">함께 열 화면</p><div class="seg" id="shM"><button data-sh="m:" aria-pressed="true">없음</button><button data-sh="m:lyr" aria-pressed="false">가사</button>${hasScore(t)?`<button data-sh="m:score" aria-pressed="false">악보</button>`:''}</div>
+ <p class="phelp">반주는 지금 고른 「${esc(v?v.name:'')}」로 열립니다.</p>
+ <div class="bar"><button class="pill" data-shgo>${svg('share')}링크 보내기</button><button class="ghost" data-close>닫기</button></div>`)}
+function shareUrl(){const t=queue[qi],q=new URLSearchParams();const sel=id=>{const b=document.querySelector(`#${id} [aria-pressed="true"]`);return b?b.dataset.sh.split(':')[1]:''};
+ q.set('s',t.id);const tt=sel('shT');if(tt&&tt!=='0')q.set('t',tt);const v=verOf(t.album);if(v)q.set('v',v.id);
+ if($('#shP')){const pp=sel('shP');if(pp)q.set('p',pp)}const m=sel('shM');if(m)q.set('m',m);return SHARE_BASE+'?'+q.toString()}
+$('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-sh]');if(b){b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));return}
+ if(e.target.closest('[data-shgo]')){const u=shareUrl(),t=queue[qi],txt=`${label(t)} — 주찬양 플레이어에서 들어 보세요`;
+  if(navigator.share)navigator.share({title:'주찬양 플레이어',text:txt,url:u}).catch(()=>{});
+  else (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast('링크를 복사했습니다 — 문자·카톡에 붙여 넣으세요')).catch(()=>sheet(`<h3>링크</h3><p style="word-break:break-all">${esc(u)}</p><button class="pill" data-close>닫기</button>`))}});
+$('#npShare').onclick=()=>shareSheet();
+// 받은 링크로 열었을 때
+function openShared(){const q=new URLSearchParams(location.search);const s=q.get('s');if(!s)return false;
+ try{history.replaceState(null,'',location.pathname)}catch(e){}
+ let A=null,i=-1;for(const a of CAT.albums){const k=a.tracks.findIndex(t=>t.id===s);if(k>=0){A=a;i=k;break}}if(!A){toast('링크의 곡을 찾지 못했습니다');return false}
+ const v=q.get('v');if(v&&(A.versions||[]).some(x=>x.id===v)){ver=v;LS.set('ver',v)}
+ const p=q.get('p'),T=A.tracks[i];if(p&&Array.isArray(T.parts)&&T.parts.some(x=>x.k===p)){partsOn=true;LS.set('partsOn',true);const o={};for(const x of T.parts)o[x.k]=x.k===p||x.k==='acc'?2:1;PL[T.id]=o;LS.set('partLv',PL)}
+ albumId=A.id;tab='album';const l=A.tracks.map(t=>({...t,album:A}));l.src='album:'+A.id;queue=l;qi=i;
+ const tt=+q.get('t')||0;au.addEventListener('loadedmetadata',()=>{if(tt>0&&tt<(au.duration||0)-2)au.currentTime=tt},{once:true});
+ load(false);applyPartVols();
+ const m=q.get('m');if(m==='lyr'||m==='score'){lmode=m;LS.set('lmode',m)}
+ const pn=p&&T.parts?T.parts.find(x=>x.k===p):null;
+ sheet(`<div class="intro"><p class="step">받은 링크</p><h3>${esc(label(T))}</h3><p>${[verOf(A)?.name+' 반주',pn?pn.name+' 크게':'',tt?fmt(tt)+'부터':''].filter(Boolean).join(' · ')}</p>
+ <div class="bar"><button class="pill big" data-shplay="${m||''}">${svg('play')}듣기</button><button class="ghost" data-close>닫기</button></div></div>`);
+ return true}
+$('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-shplay]');if(!b)return;$('#sheet').classList.remove('open');au.play().catch(()=>{});if(b.dataset.shplay)openLyr();else openNP()});
+
 // ---------- 시작 ----------
 (async()=>{
  $('#bplay').innerHTML=svg('play');$('#npPlay').innerHTML=svg('play'); applySet(); showRep(); $('#bver').textContent=window.BUILD?'판 '+window.BUILD:''; await DB.open(); await OFF.load(); mine=(await DB.all()).sort((a,b)=>a.added-b.added);
@@ -626,6 +663,7 @@ au.addEventListener('play',()=>{if(tab==='radio')render()});au.addEventListener(
    const p=LS.get('pos',0);au.addEventListener('loadedmetadata',()=>{if(p<(au.duration||0)-3)au.currentTime=p},{once:true})}}
  if(!$('#pimg').getAttribute('src'))$('#pimg').src=CAT.albums[0]?.cover||'';
  render();
- if(!LS.get('intro1',false))setTimeout(()=>{if(!$('#sheet').classList.contains('open'))intro(0)},600);
+ const shared=openShared();
+ if(!shared&&!LS.get('intro1',false))setTimeout(()=>{if(!$('#sheet').classList.contains('open'))intro(0)},600);
 })();
 }

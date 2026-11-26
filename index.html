@@ -212,6 +212,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 .today p{font-size:16px;line-height:1.6;margin:4px 0 8px;word-break:keep-all}
 .today blockquote{margin:0;border-left:4px solid var(--gold);padding:6px 12px;font-size:15.5px;line-height:1.6;color:var(--ink);word-break:keep-all;background:var(--card);border-radius:0 12px 12px 0}
 .today blockquote small{display:block;color:var(--gold);font-weight:700;font-size:13px}
+.seg.wrap{flex-wrap:wrap;width:100%;border-radius:14px}.seg.wrap button{flex:1 0 30%}
 @media (max-width:520px){.hero{grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:14px}}
 @media (prefers-reduced-motion:reduce){.toast,.lyrin p{transition:none}.eq i{animation:none;height:10px}}
 </style>
@@ -262,7 +263,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
   <button id="npFwd" class="skip" data-ic="fwd" aria-label="10초 앞으로"><small>10</small></button>
  </div>
  <div class="npmore">
-  <button id="npShuf" data-ic="shuffle">섞기</button><button id="npRep"></button><button id="npLyr" data-ic="lyrics">가사·악보</button><button id="npSleep"></button><button id="npInfo" data-ic="info">곡 설명</button><button id="npParts" hidden></button>
+  <button id="npShuf" data-ic="shuffle">섞기</button><button id="npRep"></button><button id="npLyr" data-ic="lyrics">가사·악보</button><button id="npSleep"></button><button id="npInfo" data-ic="info">곡 설명</button><button id="npParts" hidden></button><button id="npShare" data-ic="share">링크 보내기</button>
  </div>
 </section>
 <section class="lyr" id="lyr" aria-label="가사"><div class="lyrtop"><button id="lyrClose" class="ghost" data-ic="left">닫기</button><span id="lmodes"></span></div><div class="lyrin serif" id="lyrIn"></div></section>
