@@ -206,6 +206,12 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 .sched li b{font-variant-numeric:tabular-nums;color:var(--soft);font-weight:500}
 .sched li small{display:block;color:var(--soft);font-size:13px}
 .sched li.cur{background:var(--gold2)}.sched li.cur b,.sched li.cur span{color:var(--gold);font-weight:700}
+.today{margin:0 0 12px}
+.chip{display:inline-block;background:var(--gold);color:var(--on);border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700;margin:0 6px 6px 0}
+.chip.soft{background:var(--gold2);color:var(--gold)}
+.today p{font-size:16px;line-height:1.6;margin:4px 0 8px;word-break:keep-all}
+.today blockquote{margin:0;border-left:4px solid var(--gold);padding:6px 12px;font-size:15.5px;line-height:1.6;color:var(--ink);word-break:keep-all;background:var(--card);border-radius:0 12px 12px 0}
+.today blockquote small{display:block;color:var(--gold);font-weight:700;font-size:13px}
 @media (max-width:520px){.hero{grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:14px}}
 @media (prefers-reduced-motion:reduce){.toast,.lyrin p{transition:none}.eq i{animation:none;height:10px}}
 </style>

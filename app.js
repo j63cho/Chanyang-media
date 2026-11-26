@@ -533,6 +533,30 @@ $('#sheet').addEventListener('click',e=>{
 
 // ---------- 주찬양 라디오 ----------
 // 1단계 「끝없이 섞어 듣기」 / 2단계 「시간표 라디오」: 시간대마다 프로그램, 같은 지역(시간대)에서는 모두 같은 시각에 같은 곡
+// 날마다 새 방송표: radio.json(저장소)의 days[날짜] → 없으면 교회력·주제 돌림으로 앱이 스스로
+let RADIO=LS.get('radio',null);
+const RADIO_DEF={themes:[{id:'comfort',name:'위로',tracks:[4,9,10,22,23,21],verse:4},{id:'hope',name:'소망',tracks:[21,22,23,25,12],verse:21},{id:'victory',name:'이김',tracks:[6,15,16,24,13,18],verse:24},{id:'worship',name:'예배와 찬양',tracks:[8,10,11,18,16,13],verse:8},{id:'wait',name:'기다림',tracks:[25,19,14,3,7],verse:25},{id:'repent',name:'처음 사랑',tracks:[5,2,17,20],verse:5},{id:'kingdom',name:'하나님의 나라',tracks:[13,20,21,24],verse:13},{id:'thanks',name:'감사',tracks:[18,10,12,8,13,24],verse:18}],
+ seasons:{advent:'wait',christmas:'worship',lent:'repent',easter:'victory',thanksgiving:'thanks'},ordinary:['comfort','worship','hope','victory','kingdom','repent'],days:{}};
+const RD=()=>RADIO&&RADIO.themes?RADIO:RADIO_DEF;
+function easterOf(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,da)}
+function seasonOf(d){const y=d.getFullYear(),day=new Date(y,d.getMonth(),d.getDate()),DAY=864e5;
+ const xmas=new Date(y,11,25),adv1=new Date(xmas.getTime()-((xmas.getDay()||7)+21)*DAY);
+ if(day>=adv1&&day<new Date(y,11,24))return 'advent';
+ if(day>=new Date(y,11,24)||day<=new Date(y,0,6))return 'christmas';
+ const E=easterOf(y);if(day>=new Date(E.getTime()-46*DAY)&&day<E)return 'lent';
+ if(day>=E&&day<new Date(E.getTime()+49*DAY))return 'easter';
+ if(d.getMonth()===10&&d.getDay()===4&&d.getDate()>=22&&d.getDate()<=28)return 'thanksgiving';
+ return ''}
+const SEASON_NAME={advent:'대림절',christmas:'성탄절',lent:'사순절',easter:'부활절기',thanksgiving:'추수감사절'};
+function radioDay(d){const x=new Date(d);if(x.getHours()<5)x.setDate(x.getDate()-1);return x}
+function dayKey(d){const x=radioDay(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
+function dayPlan(d=new Date()){const R=RD(),k=dayKey(d),x=radioDay(d),D=(R.days||{})[k],th=id=>R.themes.find(t=>t.id===id);
+ const s=seasonOf(x);let T=D&&th(D.theme);
+ if(!T&&s&&R.seasons&&R.seasons[s])T=th(R.seasons[s]);
+ if(!T){const o=R.ordinary||R.themes.map(t=>t.id);T=th(o[Math.floor(x.getTime()/864e5)%o.length])||R.themes[0]}
+ return {key:k,theme:T,title:(D&&D.title)||SEASON_NAME[s]||'',greeting:(D&&D.greeting)||'',verse:(D&&D.verse)||T.verse,order:(D&&D.order)||T.tracks,notes:(D&&D.notes)||{},fresh:!!D}}
+async function loadRadio(isWeb){try{const u=isWeb?'radio.json':'https://raw.githubusercontent.com/j63cho/Chanyang-media/main/radio.json?t='+Date.now();
+ const ctl=new AbortController();setTimeout(()=>ctl.abort(),6000);const r=await fetch(u,{signal:ctl.signal,cache:'no-store'});if(r.ok){const j=await r.json();if(j&&j.themes){RADIO=j;LS.set('radio',j)}}}catch(e){}}
 const PROGS=[
  {id:'sun',name:'주일 예배 준비',desc:'예배 전, 마음을 여는 찬양',days:[0],from:6,to:11,ver:'B',order:'album'},
  {id:'morn',name:'아침 말씀',desc:'곡마다 말씀 한 구절과 함께 여는 아침',from:5,to:9,ver:'B',order:'album'},
@@ -543,9 +567,12 @@ function progAt(d){const h=d.getHours(),hh=h<5?h+24:h,day=(h<5?(d.getDay()+6)%7:
  return PROGS.find(P=>P.days&&P.days.includes(day)&&hh>=P.from&&hh<P.to)||PROGS.find(P=>!P.days&&hh>=P.from&&hh<P.to)||PROGS[2]}
 function progStart(P,d){const s=new Date(d);if(d.getHours()<5)s.setDate(s.getDate()-1);s.setHours(P.from%24,0,0,0);if(P.from>=24)s.setDate(s.getDate()+1);return s.getTime()}
 function seeded(seed){let x=seed|0||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return ((x>>>0)%100000)/100000}}
-function progPool(P,d){const l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rv:P.ver,rp:P.name});
+function progPool(P,d){let l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rv:P.ver,rp:P.name});
  if(P.order==='mix'){const s=new Date(progStart(P,d));const r=seeded(s.getFullYear()*10000+(s.getMonth()+1)*100+s.getDate()+P.from);for(let i=l.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[l[i],l[j]]=[l[j],l[i]]}}
- return l}
+ // 오늘의 주제 곡을 앞에 (첫 앨범 기준 곡 번호)
+ const D=dayPlan(d),first=CAT.albums[0]&&CAT.albums[0].id,top=[];
+ for(const n of D.order){const i=l.findIndex(t=>t.album.id===first&&String(t.n)===String(n));if(i>=0)top.push(l.splice(i,1)[0])}
+ return top.concat(l)}
 const durOf=t=>parseFloat(t.dur)||120;
 function radioNow(d=new Date()){const P=progAt(d),pool=progPool(P,d);if(!pool.length)return null;
  const total=pool.reduce((s,t)=>s+durOf(t),0);let off=((d.getTime()-progStart(P,d))/1000)%total;let i=0;
@@ -562,13 +589,16 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  const on=queue.src==='radio'&&!au.paused,cur=on?queue[qi]:R.pool[R.i],nx=on?queue[qi+1]:R.pool[(R.i+1)%R.pool.length];
  const v=rawVer(cur),day=new Date().getDay();
  const lst=PROGS.filter(P=>!P.days||P.days.includes(day)).map(P=>`<li class="${P.id===R.P.id?'cur':''}"><b>${hm(P.from)}–${hm(P.to)}</b><span>${esc(P.name)}<small>${esc(P.desc)}</small></span></li>`).join('');
- const note=(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
+ const D=dayPlan(),dn=D.notes[String(cur.n)];
+ const vt=(CAT.albums[0]?.tracks||[]).find(t=>String(t.n)===String(D.verse));
+ const note=dn?'':(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
  return `<section class="radio">
  <div class="onair"><i></i>지금 방송 중</div>
  <h1>주찬양 라디오</h1>
+ <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>
  <div class="rprog"><b>${esc(R.P.name)}</b><small>${hm(R.P.from)}–${hm(R.P.to)} · ${esc(R.P.desc)}</small></div>
  <div class="nowcard"><img src="${esc(cur.album.cover)}" alt=""><div><small>${on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${esc(cur.part||'')}${v?' · '+esc(v.name):''}</small></div></div>
- ${R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>오늘의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
+ ${dn?`<p class="rnote"><small>진행자의 말</small>${esc(dn)}</p>`:R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>이 곡의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
  ${nx?`<p class="nextup">다음 곡 · ${esc(label(nx))}</p>`:''}
  <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}끝없이 섞어 듣기</button></div>
  <p class="rhelp">시간표 라디오는 같은 시간대에 있는 사람이 모두 같은 곡을 함께 듣습니다. 곡이 끝나면 다음 곡이, 시간이 바뀌면 다음 프로그램이 이어집니다.</p>
@@ -588,6 +618,7 @@ au.addEventListener('play',()=>{if(tab==='radio')render()});au.addEventListener(
  CAT=(isWeb?local:LS.get('cat',null)||local)||{albums:[]};
  if(!isWeb)try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),6000);const r=await fetch(REMOTE+'?t='+Date.now(),{signal:ctl.signal,cache:'no-store'});
   if(r.ok){const j=await r.json();if(j&&Array.isArray(j.albums)&&j.albums.length){CAT=j;LS.set('cat',j)}}}catch(e){}
+ await loadRadio(isWeb&&!!window.CATALOG);
  if(!album(albumId))albumId=CAT.albums[0]?.id;
  const last=LS.get('last',null);
  if(last){const m=allTracks();const l=(last.ids||[]).map(id=>m[id]).filter(Boolean);const i=l.findIndex(t=>t.id===last.id);
