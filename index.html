@@ -185,6 +185,27 @@ a.opt{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:no
 .sheet .opt{gap:8px}
 .setver{color:var(--soft);font-size:13px;margin:14px 0 0}
 a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:none}
+/* 주찬양 라디오 */
+.radio{padding:16px 0 10px}
+.onair{display:inline-flex;align-items:center;gap:8px;color:#c0262d;font-weight:700;font-size:14px;letter-spacing:.04em}
+.onair i{width:10px;height:10px;border-radius:50%;background:#e0313a;box-shadow:0 0 0 0 rgba(224,49,58,.6);animation:air 1.6s infinite}
+@keyframes air{0%{box-shadow:0 0 0 0 rgba(224,49,58,.55)}70%{box-shadow:0 0 0 10px rgba(224,49,58,0)}100%{box-shadow:0 0 0 0 rgba(224,49,58,0)}}
+.radio h1{font:700 clamp(26px,6vw,38px)/1.2 "Noto Serif KR",serif;margin:6px 0 12px}
+.radio .rprog{background:linear-gradient(135deg,#6b3fa6,#4e2a86);color:#fff;border-radius:16px;padding:14px 16px;margin-bottom:12px}
+.radio .rprog b{display:block;font-size:21px}.radio .rprog small{opacity:.9;font-size:14px}
+.nowcard{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px}
+.nowcard img{width:72px;height:72px;border-radius:12px;object-fit:cover}
+.nowcard b{display:block;font-size:17px;word-break:keep-all}.nowcard small{color:var(--soft);font-size:13px;display:block}
+.rverse,.rnote{margin:12px 0 0;background:var(--gold2);border-radius:14px;padding:12px 14px;font-size:16px;line-height:1.6;word-break:keep-all}
+.rverse small,.rnote small{display:block;color:var(--gold);font-weight:700;font-size:13px;margin-bottom:2px}
+.nextup{color:var(--soft);font-size:14px;margin:10px 2px 0}
+.pill.big{min-height:52px;font-size:17px;padding:0 24px}
+.rhelp{color:var(--soft);font-size:13px;margin:4px 2px 0}
+.sched{list-style:none;padding:0;margin:0}
+.sched li{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;padding:10px 6px;border-bottom:1px solid var(--line);border-radius:10px}
+.sched li b{font-variant-numeric:tabular-nums;color:var(--soft);font-weight:500}
+.sched li small{display:block;color:var(--soft);font-size:13px}
+.sched li.cur{background:var(--gold2)}.sched li.cur b,.sched li.cur span{color:var(--gold);font-weight:700}
 @media (max-width:520px){.hero{grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:14px}}
 @media (prefers-reduced-motion:reduce){.toast,.lyrin p{transition:none}.eq i{animation:none;height:10px}}
 </style>
@@ -217,6 +238,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
   <button role="tab" data-tab="album" data-ic="disc" aria-selected="true">앨범</button>
   <button role="tab" data-tab="mine" data-ic="note" aria-selected="false">내 곡</button>
   <button role="tab" data-tab="lists" data-ic="list" aria-selected="false">재생 목록</button>
+  <button role="tab" data-tab="radio" data-ic="radio" aria-selected="false">라디오</button>
   <button role="tab" id="navLyr" data-ic="lyrics" aria-selected="false">가사·악보</button>
  </nav>
 </div>

@@ -38,6 +38,7 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17.2v.01"/>',
  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
  star:'<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.3l1.1-6.2L3 9.7l6.2-.9z"/>',
+ radio:'<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="m7 8 10-5"/><circle cx="15.5" cy="14" r="2.8"/><path d="M6.5 12h3M6.5 16h3"/>',
  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'};
 const svg=k=>`<svg viewBox="0 0 24 24" class="i" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(e=>e.insertAdjacentHTML('afterbegin',svg(e.dataset.ic)));
@@ -104,7 +105,7 @@ function mineList(s){return mineAlbums().get(albOf(s))||[s]}
 const album=id=>CAT.albums.find(a=>a.id===id);
 function allTracks(){const m={};for(const a of CAT.albums)for(const t of a.tracks)m[t.id]={...t,album:a};for(const s of mine)m[s.id]=s;return m}
 function verOf(a){return (a&&a.versions||[]).find(v=>v.id===ver)||(a&&a.versions||[])[0]}
-function rawSrc(t,v){const a=t.album;v=v||verOf(a);if(a&&v&&!v.local&&a.media) return `${a.media}/2ch/${String(t.n).padStart(2,'0')}_${v.id}.${a.ext||'m4a'}`; return t.src}
+function rawSrc(t,v){const a=t.album;v=v||(t.rv&&a&&(a.versions||[]).find(x=>x.id===t.rv&&(x.local||a.media)))||verOf(a);if(a&&v&&!v.local&&a.media) return `${a.media}/2ch/${String(t.n).padStart(2,'0')}_${v.id}.${a.ext||'m4a'}`; return t.src}
 function trackSrc(t){if(t.blob){if(!urls[t.id])urls[t.id]=URL.createObjectURL(t.blob);return urls[t.id]}
  if(partOn(t))return partUrl(t,'acc');
  return OFF.url(rawSrc(t))} // 기기에 저장된 곡이면 저장본으로 (인터넷 없이)
@@ -116,13 +117,15 @@ function verBar(a){const vs=(a.versions||[]).filter(v=>v.local||a.media); if(vs.
  return `<div class="verrow"><span class="lbl">반주 고르기</span><div class="seg" role="group" aria-label="반주 고르기">${vs.map(v=>`<button data-ver="${v.id}" aria-pressed="${verOf(a).id===v.id}">${esc(v.name)}</button>`).join('')}</div></div>`}
 function shuffled(l,keep){const r=l.filter((_,i)=>i!==keep);for(let i=r.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[r[i],r[j]]=[r[j],r[i]]}return keep>=0?[l[keep],...r]:r}
 function label(t){return t.album?`${String(t.n).padStart(2,'0')}. ${t.kind?t.kind+' ':''}「${t.title}」`:t.title}
-function sub(t){if(!t.album)return t.alb?'내 곡 · '+t.alb:'내 곡';const v=verOf(t.album);return `${t.part||''} · ${partOn(t)?'성부 듣기 · ':v&&(t.album.versions||[]).length>1?v.name+' · ':''}${t.album.title}`}
+function sub(t){if(t.rp){const v=t.album&&rawVer(t);return `주찬양 라디오 · ${t.rp}${v?' · '+v.name:''}`}
+ if(!t.album)return t.alb?'내 곡 · '+t.alb:'내 곡';const v=verOf(t.album);return `${t.part||''} · ${partOn(t)?'성부 듣기 · ':v&&(t.album.versions||[]).length>1?v.name+' · ':''}${t.album.title}`}
 function toast(m){const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),1800)}
 
 // ---------- 화면 ----------
 function render(){ pickBar();
  navSel();
  const v=$('#view'); const cur=queue[qi];
+ if(tab==='radio'){v.innerHTML=radioHtml();return}
  if(tab==='album'){
   const a=album(albumId)||CAT.albums[0]; if(!a){v.innerHTML='<p class="empty">앨범이 없습니다.</p>';return}
   albumId=a.id; let h='';
@@ -191,7 +194,7 @@ function prev(){ if(au.currentTime>4){au.currentTime=0;return} if(qi>0){qi--;loa
 // 안드로이드 앱(Capacitor)에서는 기기 미디어 세션 플러그인 — 잠금 화면·알림·차 버튼·블루투스
 const CAP=window.Capacitor, NMS=(CAP&&CAP.isNativePlatform&&CAP.isNativePlatform()&&CAP.registerPlugin)?CAP.registerPlugin('MediaSession'):null;
 function meta(t){
- const m={title:label(t),artist:t.album?(t.part||t.album.artist):'내 곡',album:t.album?t.album.title:(t.alb||'내 곡'),
+ const m={title:label(t),artist:t.rp?'주찬양 라디오 · '+t.rp:t.album?(t.part||t.album.artist):'내 곡',album:t.album?t.album.title:(t.alb||'내 곡'),
   artwork:[{src:new URL(t.album?t.album.cover:(CAT.albums[0]?.cover||''),location.href).href,sizes:'600x600',type:'image/jpeg'}]};
  if(NMS){NMS.setMetadata(m).catch(()=>{});return}
  const ms=navigator.mediaSession; if(!ms)return;
@@ -206,6 +209,8 @@ au.addEventListener('pause',()=>{$('#bplay').innerHTML=svg('play');document.body
 au.addEventListener('timeupdate',()=>{const d=au.duration||0;$('#pfill').style.width=d?(au.currentTime/d*100)+'%':'0'});
 // 곡 끝: 녹음 끝 0.6초는 소리 없는 부분(측정함)이라, 0.4초 남으면 다음 곡으로 넘어가 곡 사이를 잇는다 (성부 듣기·한 곡 반복 때는 그대로)
 function onEnd(){if(sleepEnd){sleepEnd=false;au.pause();syncNP();toast('잠들기 타이머: 곡이 끝나 멈췄습니다');return}
+ if(queue.src==='radio'){const P=progAt(new Date());if(P.id!==queue.prog||qi>=queue.length-1)radioTune(true);else{qi++;load(true)}return}
+ if(queue.src==='radio-mix'&&qi>=queue.length-1){radioMix();return}
  const last=String(queue.src||'').startsWith('album:')&&qi===queue.length-1&&queue.length>=10;
  next(true); if(last)askRate()}
 au.addEventListener('ended',()=>{if(au._early){au._early=false;return}onEnd()});
@@ -231,7 +236,7 @@ $('#binfo').onclick=()=>{const t=queue[qi];if(!t)return;sheet(`<h3>${esc(label(t
 function setVer(id){if(ver===id)return;ver=id;LS.set('ver',ver);const t=queue[qi];
  if(t&&t.album){const pos=au.currentTime,pl=!au.paused;setSrc(t);au.addEventListener('loadedmetadata',()=>{au.currentTime=pos;if(pl)au.play().catch(()=>{})},{once:true});$('#psub').textContent=sub(t)}
  render();toast('반주: '+(verOf(album(albumId))?.name||''))}
-au.addEventListener('error',()=>{const t=queue[qi];ERR.add('재생 오류 '+(au.error?au.error.code:'')+': '+String(au.currentSrc||'').slice(-50));if(t&&t.album&&!String(au.currentSrc).startsWith('blob:'))toast(navigator.onLine===false?'인터넷이 없습니다 — 이 곡은 저장되어 있지 않습니다':'이 곡을 불러오지 못했습니다 (인터넷 확인)')});
+au.addEventListener('error',()=>{const t=queue[qi];if(t&&t.rv&&t.rv!=='B'){ERR.add('라디오: '+t.rv+' 못 불러 앙상블로');t.rv='B';const p=au.currentTime;setSrc(t);au.addEventListener('loadedmetadata',()=>{au.currentTime=p},{once:true});au.play().catch(()=>{});return}ERR.add('재생 오류 '+(au.error?au.error.code:'')+': '+String(au.currentSrc||'').slice(-50));if(t&&t.album&&!String(au.currentSrc).startsWith('blob:'))toast(navigator.onLine===false?'인터넷이 없습니다 — 이 곡은 저장되어 있지 않습니다':'이 곡을 불러오지 못했습니다 (인터넷 확인)')});
 $('#bshuf').onclick=()=>{shuf=!shuf;LS.set('shuf',shuf);$('#bshuf').classList.toggle('on',shuf);
  if(queue.length){const t=queue[qi];const base=queue.orig||queue;if(shuf){const o=queue.slice();const l=shuffled(queue,qi);l.src=queue.src;l.orig=o;queue=l;qi=0}else if(queue.orig){const l=queue.orig;l.src=queue.src;qi=l.findIndex(x=>x.id===t.id);queue=l}}
  toast(shuf?'섞어서 듣기':'차례로 듣기')};
@@ -525,6 +530,53 @@ $('#sheet').addEventListener('click',e=>{
  if(e.target.closest('[data-help]')){help();return}
  if(e.target.closest('[data-copyerr]')){const s=reportText();(navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>toast('문제 기록을 복사했습니다 — 메일·문자에 붙여 넣어 보내 주세요')).catch(()=>toast('복사하지 못했습니다'));return}
  if(e.target.closest('[data-rated]')){LS.set('rated',true);$('#sheet').classList.remove('open')}});
+
+// ---------- 주찬양 라디오 ----------
+// 1단계 「끝없이 섞어 듣기」 / 2단계 「시간표 라디오」: 시간대마다 프로그램, 같은 지역(시간대)에서는 모두 같은 시각에 같은 곡
+const PROGS=[
+ {id:'sun',name:'주일 예배 준비',desc:'예배 전, 마음을 여는 찬양',days:[0],from:6,to:11,ver:'B',order:'album'},
+ {id:'morn',name:'아침 말씀',desc:'곡마다 말씀 한 구절과 함께 여는 아침',from:5,to:9,ver:'B',order:'album'},
+ {id:'rest',name:'낮의 쉼',desc:'잔잔한 피아노 반주로 듣는 한낮',from:9,to:17,ver:'A',order:'mix'},
+ {id:'eve',name:'위로와 소망',desc:'하루를 마치며 듣는 관현악 오라토리오',from:17,to:22,ver:'C',order:'album'},
+ {id:'night',name:'밤의 평안',desc:'조용히 잠드는 시간 — 잠들기 타이머와 함께',from:22,to:29,ver:'A',order:'mix'}];
+function progAt(d){const h=d.getHours(),hh=h<5?h+24:h,day=(h<5?(d.getDay()+6)%7:d.getDay());
+ return PROGS.find(P=>P.days&&P.days.includes(day)&&hh>=P.from&&hh<P.to)||PROGS.find(P=>!P.days&&hh>=P.from&&hh<P.to)||PROGS[2]}
+function progStart(P,d){const s=new Date(d);if(d.getHours()<5)s.setDate(s.getDate()-1);s.setHours(P.from%24,0,0,0);if(P.from>=24)s.setDate(s.getDate()+1);return s.getTime()}
+function seeded(seed){let x=seed|0||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return ((x>>>0)%100000)/100000}}
+function progPool(P,d){const l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rv:P.ver,rp:P.name});
+ if(P.order==='mix'){const s=new Date(progStart(P,d));const r=seeded(s.getFullYear()*10000+(s.getMonth()+1)*100+s.getDate()+P.from);for(let i=l.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[l[i],l[j]]=[l[j],l[i]]}}
+ return l}
+const durOf=t=>parseFloat(t.dur)||120;
+function radioNow(d=new Date()){const P=progAt(d),pool=progPool(P,d);if(!pool.length)return null;
+ const total=pool.reduce((s,t)=>s+durOf(t),0);let off=((d.getTime()-progStart(P,d))/1000)%total;let i=0;
+ while(i<pool.length-1&&off>=durOf(pool[i])){off-=durOf(pool[i]);i++}return {P,pool,i,off}}
+const rawVer=t=>{const a=t.album;return t.rv&&a&&(a.versions||[]).find(x=>x.id===t.rv&&(x.local||a.media))||verOf(a)};
+function radioTune(play){const R=radioNow();if(!R){toast('라디오에 틀 곡이 없습니다');return}
+ const l=[...R.pool.slice(R.i),...R.pool.slice(0,R.i)];l.src='radio';l.prog=R.P.id;queue=l;qi=0;
+ const off=R.off;au.addEventListener('loadedmetadata',()=>{if(off>2&&off<(au.duration||0)-3)au.currentTime=off},{once:true});
+ load(play!==false);toast(`주찬양 라디오 — 「${R.P.name}」`)}
+function radioMix(){const l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rp:'끝없이 섞어 듣기'});
+ const s=shuffled(l,-1);s.src='radio-mix';queue=s;qi=0;load(true)}
+const hm=h=>`${String(h%24).padStart(2,'0')}:00`;
+function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오에 틀 곡이 아직 없습니다.</p>';
+ const on=queue.src==='radio'&&!au.paused,cur=on?queue[qi]:R.pool[R.i],nx=on?queue[qi+1]:R.pool[(R.i+1)%R.pool.length];
+ const v=rawVer(cur),day=new Date().getDay();
+ const lst=PROGS.filter(P=>!P.days||P.days.includes(day)).map(P=>`<li class="${P.id===R.P.id?'cur':''}"><b>${hm(P.from)}–${hm(P.to)}</b><span>${esc(P.name)}<small>${esc(P.desc)}</small></span></li>`).join('');
+ const note=(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
+ return `<section class="radio">
+ <div class="onair"><i></i>지금 방송 중</div>
+ <h1>주찬양 라디오</h1>
+ <div class="rprog"><b>${esc(R.P.name)}</b><small>${hm(R.P.from)}–${hm(R.P.to)} · ${esc(R.P.desc)}</small></div>
+ <div class="nowcard"><img src="${esc(cur.album.cover)}" alt=""><div><small>${on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${esc(cur.part||'')}${v?' · '+esc(v.name):''}</small></div></div>
+ ${R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>오늘의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
+ ${nx?`<p class="nextup">다음 곡 · ${esc(label(nx))}</p>`:''}
+ <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}끝없이 섞어 듣기</button></div>
+ <p class="rhelp">시간표 라디오는 같은 시간대에 있는 사람이 모두 같은 곡을 함께 듣습니다. 곡이 끝나면 다음 곡이, 시간이 바뀌면 다음 프로그램이 이어집니다.</p>
+ <h2 class="part"><span>오늘 방송표</span></h2><ul class="sched">${lst}</ul></section>`}
+$('#view').addEventListener('click',e=>{const b=e.target.closest('[data-radio]');if(!b)return;
+ if(b.dataset.radio==='live'){if(queue.src==='radio'&&!au.paused){au.pause();render();return}radioTune(true)}else radioMix()});
+setInterval(()=>{if(tab==='radio'&&!npOpen&&!lyrOpen&&!$('#sheet').classList.contains('open'))render()},20000);
+au.addEventListener('play',()=>{if(tab==='radio')render()});au.addEventListener('pause',()=>{if(tab==='radio')render()});
 
 // ---------- 시작 ----------
 (async()=>{
