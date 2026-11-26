@@ -2352,7 +2352,8 @@
     }
    ],
    "media": ".",
-   "scores": true
+   "scores": true,
+   "book": "요한계시록"
   }
  ]
 }

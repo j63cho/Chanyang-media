@@ -573,6 +573,8 @@ function progPool(P,d){let l=[];for(const a of CAT.albums)for(const t of a.track
  // 오늘의 주제 곡을 앞에 (첫 앨범 기준 곡 번호)
  const D=dayPlan(d),first=CAT.albums[0]&&CAT.albums[0].id,top=[];
  for(const n of D.order){const i=l.findIndex(t=>t.album.id===first&&String(t.n)===String(n));if(i>=0)top.push(l.splice(i,1)[0])}
+ // 이번 주일 렉셔너리 본문과 이어지는 곡을 맨 앞에
+ try{const rs=rclSongs(rclNext(d));for(const r of rs.reverse()){const i=l.findIndex(t=>t.album.id===r.album.id&&String(t.n)===String(r.n));if(i>=0)top.unshift(l.splice(i,1)[0])}}catch(e){}
  return top.concat(l)}
 const durOf=t=>parseFloat(t.dur)||120;
 function radioNow(d=new Date()){const P=progAt(d),pool=progPool(P,d);if(!pool.length)return null;
@@ -585,6 +587,60 @@ function radioTune(play){const R=radioNow();if(!R){toast('라디오에 틀 곡�
  load(play!==false);toast(`주찬양 라디오 — 「${R.P.name}」`)}
 function radioMix(){const l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rp:'끝없이 섞어 듣기'});
  const s=shuffled(l,-1);s.src='radio-mix';queue=s;qi=0;load(true)}
+// ---------- 렉셔너리(RCL) A·B·C — 이번 주일 본문 ----------
+let RCL=LS.get('rcl',null);
+async function loadRcl(isWeb){const urls=isWeb?['rcl.json']:['https://raw.githubusercontent.com/j63cho/Chanyang-media/main/rcl.json?t='+Date.now(),'rcl.json'];
+ for(const u of urls){try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),6000);const r=await fetch(u,{signal:ctl.signal,cache:'no-store'});
+  if(r.ok){const j=await r.json();if(j&&j.A&&j.B&&j.C){RCL=j;LS.set('rcl',j);return}}}catch(e){}}}
+const ORD=['','첫째','둘째','셋째','넷째','다섯째','여섯째','일곱째','여덟째','아홉째','열째','열한째','열두째','열셋째','열넷째','열다섯째','열여섯째','열일곱째','열여덟째','열아홉째','스무째','스물한째','스물두째','스물셋째','스물넷째','스물다섯째','스물여섯째','스물일곱째','스물여덟째'];
+const RCL_NAME={xmaseve:'성탄 전야',xmas:'성탄절',chr1:'성탄 후 첫째 주일',chr2:'성탄 후 둘째 주일',epiph:'주현절',epi1:'주님의 세례 주일',transf:'산상변모 주일',ash:'재의 수요일',palm:'종려·수난 주일',maundy:'성목요일',goodfri:'성금요일',easter:'부활절',ascen:'주님의 승천일',pent:'성령강림절',trinity:'삼위일체 주일',p29:'그리스도 왕 주일',allsaints:'모든 성도의 날',thanks:'추수감사절'};
+function rclDate(y,m,d){return new Date(y,m,d)}
+function rclAdv1(y){const x=rclDate(y,10,27);x.setDate(27+(7-x.getDay())%7);return x}
+const rclDays=(a,b)=>Math.round((a-b)/864e5);
+// 날짜 하나의 렉셔너리 자리: {y:'A'|'B'|'C', key, name}
+function rclKey(day){const d=rclDate(day.getFullYear(),day.getMonth(),day.getDate());
+ let Y=d.getFullYear();if(d<rclAdv1(Y))Y--;const y='ABC'[((Y-2025)%3+3)%3];
+ const A1=rclAdv1(Y),E=easterOf(Y+1),dE=rclDays(d,E),m=d.getMonth(),dd=d.getDate(),sun=d.getDay()===0;
+ const nm=(key,name)=>({y,key,name:name||RCL_NAME[key]});
+ // 정해진 날
+ if(m===11&&dd===24)return nm('xmaseve');if(m===11&&dd===25)return nm('xmas');if(m===0&&dd===6)return nm('epiph');
+ if(dE===-46)return nm('ash');if(dE===-3)return nm('maundy');if(dE===-2)return nm('goodfri');if(dE===39)return nm('ascen');
+ if(m===10&&dd===1&&!sun)return nm('allsaints');
+ if(m===10&&d.getDay()===4&&dd>=22&&dd<=28)return nm('thanks');
+ if(!sun)return null;
+ const w=rclDays(d,A1)/7;if(w>=0&&w<4)return nm('adv'+(w+1),`대림절 ${ORD[w+1]} 주일`);
+ if((m===11&&dd>=26)||(m===0&&dd===1))return nm('chr1');
+ if(m===0&&dd>=2&&dd<=5)return nm('chr2');
+ const ep=rclDate(Y+1,0,6),b1=rclDate(Y+1,0,6+((7-ep.getDay())%7||7));
+ if(dE===-49)return nm('transf');
+ if(d>=b1&&dE<-49){const n=rclDays(d,b1)/7+1;return n===1?nm('epi1'):nm('epi'+n,`주현 후 ${ORD[n]} 주일`)}
+ if(dE>=-42&&dE<=-14)return nm('lent'+(dE/7+7),`사순절 ${ORD[dE/7+7]} 주일`);
+ if(dE===-7)return nm('palm');if(dE===0)return nm('easter');
+ if(dE>=7&&dE<=42)return nm('east'+(dE/7+1),`부활절 ${ORD[dE/7+1]} 주일`);
+ if(dE===49)return nm('pent');if(dE===56)return nm('trinity');
+ if(dE>56){const p=d<rclDate(Y+1,4,29)?3:4+Math.floor(rclDays(d,rclDate(Y+1,4,29))/7);
+  return nm('p'+p,p===29?RCL_NAME.p29:`성령강림 후 ${ORD[(dE-49)/7]} 주일`)}
+ return null}
+// 오늘이 절기 날이면 오늘, 아니면 다가오는 주일
+function rclNext(now=new Date()){const d=rclDate(now.getFullYear(),now.getMonth(),now.getDate());
+ for(let i=0;i<8;i++){const x=new Date(d);x.setDate(d.getDate()+i);const k=rclKey(x);if(k&&(i===0||x.getDay()===0))return {...k,date:x,today:i===0}}return null}
+function rclEntry(k){return k&&RCL&&RCL[k.y]&&RCL[k.y][k.key]}
+// 곡과 본문 잇기: 곡의 rcl 표시(예 "B:adv1") 또는 앨범 책(book)·곡 구절(장:절)이 본문 범위와 겹치면
+function rclRefs(e){const out=[];for(const s of [e.o,e.p,e.o2,e.p2,e.e,e.g].filter(Boolean))for(const part of s.split(/ 또는 |; /)){const m=part.match(/^([가-힣]+)(?:\([^)]*\))? (\d+)(?::([\d,\s\-a-c()]+))?/);if(m)out.push({b:m[1],c:+m[2],v:m[3]||''})}return out}
+function rclSongs(k){const e=rclEntry(k);if(!e)return [];const refs=rclRefs(e),tag=k.y+':'+k.key,out=[];
+ for(const a of CAT.albums)for(const t of a.tracks){if(!(t.src||a.media))continue;
+  if((t.rcl||[]).includes(tag)||(t.rcl||[]).includes('*:'+k.key)){out.push({...t,album:a});continue}
+  if(!a.book||!t.verse)continue;const m=String(t.verse).match(/\((\d+):(\d+)/);if(!m)continue;const c=+m[1],v=+m[2];
+  if(refs.some(r=>r.b===a.book&&r.c===c&&(()=>{const nums=(r.v.match(/\d+/g)||[]).map(Number);return !nums.length||(v>=Math.min(...nums)-1&&v<=Math.max(...nums)+1)})()))out.push({...t,album:a})}
+ return out}
+function rclHtml(){const k=rclNext();const e=rclEntry(k);if(!e)return '';
+ const dt=k.date,ds=`${dt.getMonth()+1}월 ${dt.getDate()}일`,songs=rclSongs(k);
+ const row=(l,r)=>r?`<li><small>${l}</small><span>${esc(r)}</span></li>`:'';
+ const two=e.o2?`<li class="rtrack"><small>본문 선택</small><span>이어 읽기 본문과 복음에 맞춘 본문 가운데 하나를 고릅니다.</span></li>${row('구약 ①',e.o)}${row('시편 ①',e.p)}${row('구약 ②',e.o2)}${row('시편 ②',e.p2)}`:`${row(/^사도행전/.test(e.o)?'첫째 본문':'구약',e.o)}${row('시편',e.p)}`;
+ return `<div class="rcl"><div class="rclh"><span class="chip">${k.today?'오늘':'이번 주일'} · ${ds}</span><span class="chip soft">${k.y}해</span></div>
+ <h3>${esc(k.name)}</h3><ul>${two}${row('서신',e.e)}${row('복음',e.g)}</ul>
+ ${songs.length?`<div class="rclsongs"><small>이 본문과 이어지는 곡</small>${songs.slice(0,4).map(t=>`<button class="rsong" data-rclplay="${esc(t.album.id)}|${esc(t.n)}">${svg('play')}${esc(label(t))}</button>`).join('')}</div>`:''}
+ <p class="rclsrc">개정공동성구집(RCL) · 본문 목록 밴더빌트 신학대학 도서관</p></div>`}
 const hm=h=>`${String(h%24).padStart(2,'0')}:00`;
 function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오에 틀 곡이 아직 없습니다.</p>';
  const on=queue.src==='radio'&&!au.paused,cur=on?queue[qi]:R.pool[R.i],nx=on?queue[qi+1]:R.pool[(R.i+1)%R.pool.length];
@@ -597,6 +653,7 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  <div class="onair"><i></i>지금 방송 중</div>
  <h1>주찬양 라디오</h1>
  <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>
+ ${rclHtml()}
  <div class="rprog"><b>${esc(R.P.name)}</b><small>${hm(R.P.from)}–${hm(R.P.to)} · ${esc(R.P.desc)}</small></div>
  <div class="nowcard"><img src="${esc(cur.album.cover)}" alt=""><div><small>${on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${esc(cur.part||'')}${v?' · '+esc(v.name):''}</small></div></div>
  ${dn?`<p class="rnote"><small>진행자의 말</small>${esc(dn)}</p>`:R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>이 곡의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
@@ -604,6 +661,7 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}끝없이 섞어 듣기</button></div>
  <p class="rhelp">시간표 라디오는 같은 시간대에 있는 사람이 모두 같은 곡을 함께 듣습니다. 곡이 끝나면 다음 곡이, 시간이 바뀌면 다음 프로그램이 이어집니다.</p>
  <h2 class="part"><span>오늘 방송표</span></h2><ul class="sched">${lst}</ul></section>`}
+$('#view').addEventListener('click',e=>{const r=e.target.closest('[data-rclplay]');if(r){const [aid,n]=r.dataset.rclplay.split('|');const a=album(aid);const l=a.tracks.map(t=>({...t,album:a}));const i=l.findIndex(t=>String(t.n)===n);if(i>=0)setQueue(l,i,'album:'+a.id);return}});
 $('#view').addEventListener('click',e=>{const b=e.target.closest('[data-radio]');if(!b)return;
  if(b.dataset.radio==='live'){if(queue.src==='radio'&&!au.paused){au.pause();render();return}radioTune(true)}else radioMix()});
 setInterval(()=>{if(tab==='radio'&&!npOpen&&!lyrOpen&&!$('#sheet').classList.contains('open'))render()},20000);
@@ -656,6 +714,7 @@ $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-shplay]
  if(!isWeb)try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),6000);const r=await fetch(REMOTE+'?t='+Date.now(),{signal:ctl.signal,cache:'no-store'});
   if(r.ok){const j=await r.json();if(j&&Array.isArray(j.albums)&&j.albums.length){CAT=j;LS.set('cat',j)}}}catch(e){}
  await loadRadio(isWeb&&!!window.CATALOG);
+ await loadRcl(isWeb&&!!window.CATALOG);
  if(!album(albumId))albumId=CAT.albums[0]?.id;
  const last=LS.get('last',null);
  if(last){const m=allTracks();const l=(last.ids||[]).map(id=>m[id]).filter(Boolean);const i=l.findIndex(t=>t.id===last.id);

@@ -212,6 +212,19 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 .today p{font-size:16px;line-height:1.6;margin:4px 0 8px;word-break:keep-all}
 .today blockquote{margin:0;border-left:4px solid var(--gold);padding:6px 12px;font-size:15.5px;line-height:1.6;color:var(--ink);word-break:keep-all;background:var(--card);border-radius:0 12px 12px 0}
 .today blockquote small{display:block;color:var(--gold);font-weight:700;font-size:13px}
+.rcl{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 12px}
+.rclh{display:flex;gap:6px;flex-wrap:wrap}
+.rcl h3{margin:6px 0 4px;font-size:19px;color:var(--ink)}
+.rcl ul{list-style:none;margin:0;padding:0}
+.rcl li{display:flex;gap:10px;padding:5px 0;border-top:1px dashed var(--line);font-size:16px;line-height:1.5;word-break:keep-all}
+.rcl li:first-child{border-top:0}
+.rcl li small{flex:none;width:58px;color:var(--gold);font-weight:700;font-size:13.5px;padding-top:2px}
+.rcl li.rtrack span{font-size:14px;color:var(--soft)}
+.rclsongs{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.rclsongs>small{color:var(--gold);font-weight:700;font-size:13px}
+.rsong{justify-content:flex-start;background:color-mix(in srgb,var(--gold) 9%,transparent);padding:6px 10px;font-size:15.5px;text-align:left}
+.rsong svg{width:18px;height:18px;flex:none;color:var(--gold)}
+.rclsrc{margin:8px 0 0;font-size:12px;color:var(--soft)}
 .seg.wrap{flex-wrap:wrap;width:100%;border-radius:14px}.seg.wrap button{flex:1 0 30%}
 @media (max-width:520px){.hero{grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:14px}}
 @media (prefers-reduced-motion:reduce){.toast,.lyrin p{transition:none}.eq i{animation:none;height:10px}}
