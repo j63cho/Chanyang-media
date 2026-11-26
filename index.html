@@ -167,6 +167,23 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px;margin:0}
 .setrow+.seg{width:100%}.setrow+.seg button{flex:1;padding:0 8px}
 .toast{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;white-space:nowrap}
 .toast.show{opacity:1}
+/* 인터넷 없이 듣기 · 처음 안내 · 도움말 */
+.offrow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0 4px}
+.offrow>.i{color:var(--gold);flex:none}
+.offrow>span{flex:1;font-size:15px;line-height:1.35}
+.offrow small{display:block;color:var(--soft);font-size:12.5px}
+.offrow.on{background:var(--gold2);border-color:transparent}
+.offrow .pill,.offrow .ghost{flex:none;padding:0 14px}
+.intro .step{color:var(--gold);font-weight:700;margin:0 0 4px}
+.intro h3{font-size:22px}
+.intro p{font-size:17px;line-height:1.6}
+.faq{border-bottom:1px solid var(--line);padding:4px 0}
+.faq summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+.faq p{margin:0 0 10px;color:var(--soft)}
+a.opt{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:none;color:inherit;padding:0 12px;border-bottom:1px solid var(--line)}
+.sheet .opt{gap:8px}
+.setver{color:var(--soft);font-size:13px;margin:14px 0 0}
+a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:none}
 @media (max-width:520px){.hero{grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:14px}}
 @media (prefers-reduced-motion:reduce){.toast,.lyrin p{transition:none}.eq i{animation:none;height:10px}}
 </style>

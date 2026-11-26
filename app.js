@@ -4,6 +4,10 @@ const $=s=>document.querySelector(s), au=$('#au');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>{t=Math.max(0,t|0);return (t/60|0)+':'+String(t%60).padStart(2,'0')};
 const LS={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+// ---------- 문제 기록: 에러가 나면 이 기기 안에만 적어 둠 (자동으로 보내지 않음) — 설정 → 문제 알리기 ----------
+const ERR={list:LS.get('errlog',[]),add(m){this.list.push({t:new Date().toISOString().slice(0,19),b:String(window.BUILD||''),m:String(m).slice(0,300)});this.list=this.list.slice(-30);LS.set('errlog',this.list)}};
+addEventListener('error',e=>ERR.add((e.message||'오류')+' @'+String(e.filename||'').split('/').pop()+':'+(e.lineno||'')));
+addEventListener('unhandledrejection',e=>ERR.add('처리 안 된 오류: '+((e.reason&&e.reason.message)||e.reason)));
 let CAT={albums:[]}, tab='album', albumId=LS.get('album',null), openDesc=null;
 let queue=[], qi=-1, repeat=LS.get('repeat','all'), shuf=LS.get('shuf',false), ver=LS.get('ver','B'), pick=null, mine=[], lists=LS.get('lists',[]), openList=null;
 const urls={};
@@ -30,6 +34,10 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',
  download:'<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
  parts:'<path d="M4 20V10M9 20V4M14 20v-8M19 20V7"/>',
+ save:'<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><rect x="3" y="17" width="18" height="4" rx="1.5"/>',
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17.2v.01"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+ star:'<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.3l1.1-6.2L3 9.7l6.2-.9z"/>',
  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'};
 const svg=k=>`<svg viewBox="0 0 24 24" class="i" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(e=>e.insertAdjacentHTML('afterbegin',svg(e.dataset.ic)));
@@ -37,11 +45,51 @@ const EQ='<span class="eq" aria-label="재생 중"><i></i><i></i><i></i></span>'
 
 // ---------- 내 곡: IndexedDB (이 휴대폰 안에만) ----------
 const DB={db:null,
- open(){return new Promise(r=>{setTimeout(()=>r(false),2500);try{const q=indexedDB.open('chanyang',1);q.onupgradeneeded=()=>q.result.createObjectStore('songs',{keyPath:'id'});q.onsuccess=()=>{this.db=q.result;r(true)};q.onerror=()=>r(false)}catch(e){r(false)}})},
+ open(){return new Promise(r=>{setTimeout(()=>r(false),2500);try{const q=indexedDB.open('chanyang',2);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('songs'))d.createObjectStore('songs',{keyPath:'id'});if(!d.objectStoreNames.contains('off'))d.createObjectStore('off',{keyPath:'url'})};q.onsuccess=()=>{this.db=q.result;r(true)};q.onerror=()=>r(false)}catch(e){r(false)}})},
  tx(m){return this.db.transaction('songs',m).objectStore('songs')},
  all(){return new Promise(r=>{if(!this.db)return r([]);const q=this.tx('readonly').getAll();q.onsuccess=()=>r(q.result||[]);q.onerror=()=>r([])})},
  put(o){return new Promise(r=>{if(!this.db)return r(false);const q=this.tx('readwrite').put(o);q.onsuccess=()=>r(true);q.onerror=()=>r(false)})},
  del(id){return new Promise(r=>{if(!this.db)return r();const q=this.tx('readwrite').delete(id);q.onsuccess=q.onerror=()=>r()})}};
+
+// ---------- 인터넷 없이 듣기: 앨범 음원·악보를 이 기기에 저장 ----------
+const OFF={map:new Map(),job:null,
+ key(u){try{return new URL(u,location.href).href}catch(e){return u}},
+ has(u){return this.map.has(this.key(u))},
+ url(u){if(!u)return u;const k=this.key(u),b=this.map.get(k);if(!b)return u;if(!urls['off:'+k])urls['off:'+k]=URL.createObjectURL(b);return urls['off:'+k]},
+ ok(){return !!(DB.db&&DB.db.objectStoreNames.contains('off'))},
+ load(){return new Promise(r=>{if(!this.ok())return r();const q=DB.db.transaction('off').objectStore('off').getAll();q.onsuccess=()=>{for(const o of q.result||[])this.map.set(o.url,o.blob);r()};q.onerror=()=>r()})},
+ put(url,blob,tag){return new Promise(r=>{if(!this.ok())return r(false);const k=this.key(url);const q=DB.db.transaction('off','readwrite').objectStore('off').put({url:k,blob,tag});q.onsuccess=()=>{this.map.set(k,blob);r(true)};q.onerror=()=>r(false)})},
+ del(url){return new Promise(r=>{if(!this.ok())return r();const k=this.key(url);const q=DB.db.transaction('off','readwrite').objectStore('off').delete(k);q.onsuccess=q.onerror=()=>{this.map.delete(k);if(urls['off:'+k]){URL.revokeObjectURL(urls['off:'+k]);delete urls['off:'+k]}r()}})},
+ async json(u){if(this.has(u))return JSON.parse(await this.map.get(this.key(u)).text());return (await fetch(u)).json()}};
+const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+// 앱 안에 이미 들어 있는 반주(local)는 앱에서는 저장할 필요 없음
+const offNeeds=(a,v)=>!!(v&&(!v.local||!NATIVE)&&(a.media||v.local));
+function offAudio(a,v){return a.tracks.map(t=>rawSrc({...t,album:a},v)).filter(Boolean)}
+function offCount(a,v){const l=offAudio(a,v);return {n:l.filter(u=>OFF.has(u)).length,all:l.length}}
+async function offPages(u,files){try{const S=JSON.parse(await OFF.map.get(OFF.key(u)).text());const np=Math.max(0,...S.m.map(q=>q[1]))+1;const base=u.slice(0,-6);
+ for(let p=1;p<=np;p++){const f=base+'p'+p+'.webp';if(!files.includes(f)){files.push(f);OFF.job.total++}}}catch(e){}}
+async function offSave(a,v){if(OFF.job)return;if(!OFF.ok()){toast('이 기기에서는 저장할 수 없습니다');return}
+ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+ const tag=a.id+':'+v.id, files=offAudio(a,v);
+ if(a.scores&&a.media)for(const t of a.tracks)files.push(`${a.media}/score/${String(t.n).padStart(2,'0')}/s.json`);
+ OFF.job={tag,done:0,total:files.length,stop:false};render();
+ const get=async u=>{for(let k=0;k<2;k++){try{const r=await fetch(u,{cache:'no-store'});if(r.ok)return await r.blob()}catch(e){}}return null};
+ let fail=0;
+ for(let i=0;i<files.length;i++){if(OFF.job.stop)break;const u=files[i];
+  if(!OFF.has(u)){const b=await get(u);if(!b){fail++;ERR.add('저장 실패: '+u.slice(-40));if(fail>=3)break;continue}await OFF.put(u,b,tag)}
+  if(u.endsWith('/s.json'))await offPages(u,files);
+  OFF.job.done=i+1;const el=$('#offst');if(el)el.textContent=`저장하는 중… ${OFF.job.done} / ${OFF.job.total}`}
+ const stopped=OFF.job.stop;OFF.job=null;render();
+ toast(stopped?'저장을 멈췄습니다 (다시 누르면 이어서)':fail?'인터넷이 끊겨 일부를 못 받았습니다. 다시 누르면 이어서 저장합니다':`「${v.name}」 저장 끝 — 이제 인터넷 없이 들을 수 있습니다`)}
+async function offDel(a,v){const tag=a.id+':'+v.id;const ks=[];
+ await new Promise(r=>{const q=DB.db.transaction('off').objectStore('off').getAll();q.onsuccess=()=>{for(const o of q.result||[])if(o.tag===tag)ks.push(o.url);r()};q.onerror=()=>r()});
+ for(const k of ks)await OFF.del(k);render();toast(`「${v.name}」 저장본을 지웠습니다`)}
+const eulReul=w=>{const c=String(w).charCodeAt(String(w).length-1)-0xAC00;return c>=0&&c<11172&&c%28?'을':'를'};
+function offBar(a){const v=verOf(a);if(!v||!offNeeds(a,v))return '';
+ if(OFF.job&&OFF.job.tag===a.id+':'+v.id)return `<div class="offrow">${svg('save')}<span id="offst">저장하는 중… ${OFF.job.done} / ${OFF.job.total}</span><button class="ghost" data-offstop>그만</button></div>`;
+ const c=offCount(a,v);
+ if(c.n&&c.n===c.all)return `<div class="offrow on">${svg('save')}<span><b>「${esc(v.name)}」 저장됨</b><small>인터넷 없이 들을 수 있습니다</small></span><button class="ghost" data-offdel>지우기</button></div>`;
+ return `<div class="offrow">${svg('save')}<span><b>인터넷 없이 듣기</b><small>「${esc(v.name)}」${eulReul(v.name)} 이 기기에 저장${c.n?` · ${c.n}/${c.all}곡 저장됨`:''} · 와이파이에서 · 약 ${Math.round(a.tracks.length*2.6)}MB</small></span><button class="pill" data-offsave ${OFF.job?'disabled':''}>저장하기</button></div>`}
 
 // 내 앨범: 내 곡마다 앨범 이름(alb)을 붙여 묶음. 앨범 안은 파일 이름 차례(01, 02 … 10)로.
 const NOALB='앨범 없는 곡';
@@ -56,12 +104,13 @@ function mineList(s){return mineAlbums().get(albOf(s))||[s]}
 const album=id=>CAT.albums.find(a=>a.id===id);
 function allTracks(){const m={};for(const a of CAT.albums)for(const t of a.tracks)m[t.id]={...t,album:a};for(const s of mine)m[s.id]=s;return m}
 function verOf(a){return (a&&a.versions||[]).find(v=>v.id===ver)||(a&&a.versions||[])[0]}
+function rawSrc(t,v){const a=t.album;v=v||verOf(a);if(a&&v&&!v.local&&a.media) return `${a.media}/2ch/${String(t.n).padStart(2,'0')}_${v.id}.${a.ext||'m4a'}`; return t.src}
 function trackSrc(t){if(t.blob){if(!urls[t.id])urls[t.id]=URL.createObjectURL(t.blob);return urls[t.id]}
  if(partOn(t))return partUrl(t,'acc');
- const a=t.album,v=verOf(a); if(a&&v&&!v.local&&a.media) return `${a.media}/2ch/${String(t.n).padStart(2,'0')}_${v.id}.${a.ext||'m4a'}`; return t.src}
+ return OFF.url(rawSrc(t))} // 기기에 저장된 곡이면 저장본으로 (인터넷 없이)
 // 내려받기(웹 앱만): 곡 하나 = 지금 고른 반주 파일, 앨범 전체 = catalog의 zip
 const canDL=()=>window.BUILD==='웹';
-function dlName(t,a){const v=verOf(a),src=trackSrc({...t,album:a}),ext=(src.split('?')[0].match(/\.(\w+)$/)||[])[1]||'m4a';
+function dlName(t,a){const v=verOf(a),src=rawSrc({...t,album:a}),ext=(src.split('?')[0].match(/\.(\w+)$/)||[])[1]||'m4a';
  return `${String(t.n).padStart(2,'0')} ${t.kind?t.kind+' ':''}${t.title}${v?' ('+v.name+')':''}.${ext}`.replace(/[\\/:*?"<>|]/g,'')}
 function verBar(a){const vs=(a.versions||[]).filter(v=>v.local||a.media); if(vs.length<2)return '';
  return `<div class="verrow"><span class="lbl">반주 고르기</span><div class="seg" role="group" aria-label="반주 고르기">${vs.map(v=>`<button data-ver="${v.id}" aria-pressed="${verOf(a).id===v.id}">${esc(v.name)}</button>`).join('')}</div></div>`}
@@ -79,12 +128,12 @@ function render(){ pickBar();
   albumId=a.id; let h='';
   if(CAT.albums.length>1) h+=`<div class="albums">${CAT.albums.map(x=>`<button data-alb="${x.id}" aria-pressed="${x.id===a.id}"><img src="${esc(x.cover)}" alt=""><span>${esc(x.title)}</span></button>`).join('')}</div>`;
   const total=a.tracks.reduce((s,t)=>s+(t.dur||0),0);
-  h+=`<section class="hero"><img src="${esc(a.cover)}" alt="${esc(a.title)} 표지"><div><h1>${esc(a.title)}</h1><p>${esc(a.sub||'')}</p><p>${esc(a.artist||'')} · ${a.tracks.length}곡 · ${Math.round(total/60)}분</p><div class="bar" style="margin:0"><button class="pill" data-playalb="${a.id}">${svg('play')}차례로</button><button class="ghost" data-shufalb="${a.id}">${svg('shuffle')}섞어서</button>${canDL()&&a.zip?`<a class="ghost dlall" href="${esc(a.zip)}" download>${svg('download')}앨범 전체 내려받기</a>`:''}</div>${canDL()&&a.zip?`<p class="dlnote">${esc(a.zipNote||'')}</p>`:''}</div></section>${verBar(a)}`;
+  h+=`<section class="hero"><img src="${esc(a.cover)}" alt="${esc(a.title)} 표지"><div><h1>${esc(a.title)}</h1><p>${esc(a.sub||'')}</p><p>${esc(a.artist||'')} · ${a.tracks.length}곡 · ${Math.round(total/60)}분</p><div class="bar" style="margin:0"><button class="pill" data-playalb="${a.id}">${svg('play')}차례로</button><button class="ghost" data-shufalb="${a.id}">${svg('shuffle')}섞어서</button>${canDL()&&a.zip?`<a class="ghost dlall" href="${esc(a.zip)}" download>${svg('download')}앨범 전체 내려받기</a>`:''}</div>${canDL()&&a.zip?`<p class="dlnote">${esc(a.zipNote||'')}</p>`:''}</div></section>${verBar(a)}${offBar(a)}`;
   let part=null;
   for(const t of a.tracks){
    if(t.part&&t.part!==part){part=t.part;h+=`<h2 class="part"><span>${esc(part)}</span><button class="partplay" data-playpart="${esc(part)}" data-from="${a.id}" aria-label="${esc(part)} 듣기">${svg('play')}이 부 듣기</button></h2>`}
    const now=cur&&cur.id===t.id;
-   h+=`<div class="row${now?' now':''}">${numCell(t.id,t.n)}<button class="t" data-play="${t.id}" data-from="${a.id}"><b>${t.kind?esc(t.kind)+' ':''}「${esc(t.title)}」</b><small>${fmt(t.dur)}</small></button><button class="icon" data-desc="${t.id}" aria-label="곡 설명">${svg('info')}</button><button class="icon" data-add="${t.id}" aria-label="재생 목록에 넣기">${svg('plus')}</button>${canDL()&&t.src?`<a class="icon" href="${esc(trackSrc({...t,album:a}))}" download="${esc(dlName(t,a))}" aria-label="이 곡 내려받기" title="이 곡 내려받기">${svg('download')}</a>`:''}`;
+   h+=`<div class="row${now?' now':''}">${numCell(t.id,t.n)}<button class="t" data-play="${t.id}" data-from="${a.id}"><b>${t.kind?esc(t.kind)+' ':''}「${esc(t.title)}」</b><small>${fmt(t.dur)}</small></button><button class="icon" data-desc="${t.id}" aria-label="곡 설명">${svg('info')}</button><button class="icon" data-add="${t.id}" aria-label="재생 목록에 넣기">${svg('plus')}</button>${canDL()&&t.src?`<a class="icon" href="${esc(rawSrc({...t,album:a}))}" download="${esc(dlName(t,a))}" aria-label="이 곡 내려받기" title="이 곡 내려받기">${svg('download')}</a>`:''}`;
    if(openDesc===t.id) h+=descHtml(t);
    h+='</div>';
   }
@@ -155,7 +204,15 @@ function pstate(s){if(NMS)NMS.setPlaybackState({playbackState:s}).catch(()=>{});
 au.addEventListener('play',()=>{$('#bplay').innerHTML=svg('pause');document.body.classList.remove('paused');$('#bplay').setAttribute('aria-label','멈춤');pstate('playing')});
 au.addEventListener('pause',()=>{$('#bplay').innerHTML=svg('play');document.body.classList.add('paused');$('#bplay').setAttribute('aria-label','재생');pstate('paused')});
 au.addEventListener('timeupdate',()=>{const d=au.duration||0;$('#pfill').style.width=d?(au.currentTime/d*100)+'%':'0'});
-au.addEventListener('ended',()=>{if(sleepEnd){sleepEnd=false;syncNP();toast('잠들기 타이머: 곡이 끝나 멈췄습니다');return}next(true)});
+// 곡 끝: 녹음 끝 0.6초는 소리 없는 부분(측정함)이라, 0.4초 남으면 다음 곡으로 넘어가 곡 사이를 잇는다 (성부 듣기·한 곡 반복 때는 그대로)
+function onEnd(){if(sleepEnd){sleepEnd=false;au.pause();syncNP();toast('잠들기 타이머: 곡이 끝나 멈췄습니다');return}
+ const last=String(queue.src||'').startsWith('album:')&&qi===queue.length-1&&queue.length>=10;
+ next(true); if(last)askRate()}
+au.addEventListener('ended',()=>{if(au._early){au._early=false;return}onEnd()});
+au.addEventListener('timeupdate',()=>{const d=au.duration||0,t=queue[qi];if(!d||au.paused||au._early||!t||partOn(t)||repeat==='one')return;
+ if(d-au.currentTime<0.4&&d>5){au._early=true;onEnd()}});
+au.addEventListener('loadstart',()=>{au._early=false});
+au.addEventListener('seeked',()=>{if((au.duration||0)-au.currentTime>1)au._early=false});
 au.addEventListener('timeupdate',()=>{const d=au.duration||0;$('#tcur').textContent=fmt(au.currentTime);$('#tdur').textContent=fmt(d);if(d&&!seeking)$('#pos').value=au.currentTime/d*1000;
  if((au.currentTime|0)%5===0)LS.set('pos',au.currentTime);
  const ps={duration:d,position:Math.min(au.currentTime,d),playbackRate:1};
@@ -174,7 +231,7 @@ $('#binfo').onclick=()=>{const t=queue[qi];if(!t)return;sheet(`<h3>${esc(label(t
 function setVer(id){if(ver===id)return;ver=id;LS.set('ver',ver);const t=queue[qi];
  if(t&&t.album){const pos=au.currentTime,pl=!au.paused;setSrc(t);au.addEventListener('loadedmetadata',()=>{au.currentTime=pos;if(pl)au.play().catch(()=>{})},{once:true});$('#psub').textContent=sub(t)}
  render();toast('반주: '+(verOf(album(albumId))?.name||''))}
-au.addEventListener('error',()=>{const t=queue[qi];if(t&&t.album&&!verOf(t.album).local)toast('이 반주는 인터넷 연결이 필요합니다')});
+au.addEventListener('error',()=>{const t=queue[qi];ERR.add('재생 오류 '+(au.error?au.error.code:'')+': '+String(au.currentSrc||'').slice(-50));if(t&&t.album&&!String(au.currentSrc).startsWith('blob:'))toast(navigator.onLine===false?'인터넷이 없습니다 — 이 곡은 저장되어 있지 않습니다':'이 곡을 불러오지 못했습니다 (인터넷 확인)')});
 $('#bshuf').onclick=()=>{shuf=!shuf;LS.set('shuf',shuf);$('#bshuf').classList.toggle('on',shuf);
  if(queue.length){const t=queue[qi];const base=queue.orig||queue;if(shuf){const o=queue.slice();const l=shuffled(queue,qi);l.src=queue.src;l.orig=o;queue=l;qi=0}else if(queue.orig){const l=queue.orig;l.src=queue.src;qi=l.findIndex(x=>x.id===t.id);queue=l}}
  toast(shuf?'섞어서 듣기':'차례로 듣기')};
@@ -183,7 +240,7 @@ $('#bshuf').classList.toggle('on',shuf);
 let lyrOpen=false, lmode=LS.get('lmode','lyr'); const SC={};
 function hasScore(t){return !!(t&&t.album&&t.album.media&&t.album.scores)}
 async function scoreOf(t){const k=t.id;if(SC[k]!==undefined)return SC[k];SC[k]=null;
- try{const nn=String(t.n).padStart(2,'0');const j=await (await fetch(`${t.album.media}/score/${nn}/s.json`)).json();j.base=`${t.album.media}/score/${nn}/`;SC[k]=j}catch(e){SC[k]=null}return SC[k]}
+ try{const nn=String(t.n).padStart(2,'0');const j=await OFF.json(`${t.album.media}/score/${nn}/s.json`);j.base=`${t.album.media}/score/${nn}/`;SC[k]=j}catch(e){SC[k]=null}return SC[k]}
 let curPg=-1,curM=-1;
 let busy=false;async function scoreTick(){if(busy)return;busy=true;try{await scoreTick2()}finally{busy=false}}
 async function scoreTick2(){if(!lyrOpen||lmode!=='score')return;const t=queue[qi];if(!hasScore(t))return;const S=await scoreOf(t);if(!S){$('#scoreBox').innerHTML='<p class="empty">악보를 불러오지 못했습니다 (인터넷 연결 확인).</p>';return}
@@ -197,7 +254,7 @@ async function scoreTick2(){if(!lyrOpen||lmode!=='score')return;const t=queue[qi
  let si=0;for(let j=0;j<S.sys.length;j++){if(S.sys[j].j<=i)si=j}
  const first=si; // 위 줄 = 언제나 지금 부르는 줄
  const key=t.id+':'+first;
- const strip=(L,k)=>{const cw=L.r-L.l,ch=L.bot-L.top;return `<div class="sys" id="sys${k}" style="aspect-ratio:${cw}/${(ch*S.ratio).toFixed(4)}"><img src="${S.base}p${L.p+1}.webp" alt="" style="width:${100/cw}%;left:${-L.l/cw*100}%;top:${-L.top/ch*100}%"></div>`};
+ const strip=(L,k)=>{const cw=L.r-L.l,ch=L.bot-L.top;return `<div class="sys" id="sys${k}" style="aspect-ratio:${cw}/${(ch*S.ratio).toFixed(4)}"><img src="${OFF.url(S.base+'p'+(L.p+1)+'.webp')}" alt="" style="width:${100/cw}%;left:${-L.l/cw*100}%;top:${-L.top/ch*100}%"></div>`};
  if($('#scoreBox').dataset.key!==key){const box=$('#scoreBox');box.dataset.key=key;
   const two=S.sys.slice(first,first+2);box.innerHTML=two.map((L,k)=>strip(L,first+k)).join('');$('#sys'+first)?.classList.add('cur');
   const pg=$('#scpg');if(pg)pg.textContent=`${si+1} / ${S.sys.length}줄`;fitScore(two,S)}
@@ -255,6 +312,9 @@ document.addEventListener('click',async e=>{
  if(e.target.closest('#navLyr')){closeNP();openLyr();return}
  if(b=e.target.closest('.tabs button[data-tab]')){tab=b.dataset.tab;openList=null;closeNP();closeLyr();render();scrollTo(0,0);return}
  if(b=g('data-alb')){albumId=b.dataset.alb;LS.set('album',albumId);openDesc=null;render();return}
+ if(e.target.closest('[data-offsave]')){const al=album(albumId);if(al)offSave(al,verOf(al));return}
+ if(e.target.closest('[data-offstop]')){if(OFF.job)OFF.job.stop=true;return}
+ if(e.target.closest('[data-offdel]')){const al=album(albumId);if(al)offDel(al,verOf(al));return}
  if(b=g('data-playalb')){const a=album(b.dataset.playalb);shuf=false;LS.set('shuf',false);$('#bshuf').classList.remove('on');setQueue(a.tracks.map(t=>({...t,album:a})),0,'album:'+a.id);return}
  if(b=g('data-playpart')){const a=album(b.dataset.from);const l=a.tracks.filter(t=>t.part===b.dataset.playpart).map(t=>({...t,album:a}));setQueue(l,0,'part:'+a.id);toast(b.dataset.playpart.split(' —')[0]+' 듣기');return}
  if(b=g('data-shufalb')){const a=album(b.dataset.shufalb);setQueue(a.tracks.map(t=>({...t,album:a})),0,'album:'+a.id,true);toast('섞어서 듣기');return}
@@ -418,7 +478,9 @@ function applySet(){document.documentElement.style.setProperty('--z',zoomV);
  const th=themeV==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):themeV;document.documentElement.dataset.theme=th;
  document.querySelector('meta[name=theme-color]')?.setAttribute('content',th==='dark'?'#120e22':'#f7f4fc');fitPad()}
 $('#bset').onclick=()=>{const seg=(k,cur,opts)=>`<div class="seg">${opts.map(([v,n])=>`<button data-set="${k}:${v}" aria-pressed="${String(cur)===String(v)}">${n}</button>`).join('')}</div>`;
- sheet(`<h3>설정</h3><p class="setrow">글자 크기</p>${seg('zoom',zoomV,[[1,'보통'],[1.15,'크게'],[1.3,'아주 크게']])}<p class="setrow">화면</p>${seg('theme',themeV,[['light','밝게'],['dark','어둡게'],['auto','휴대폰 따라']])}<button class="pill" data-close style="margin-top:18px">닫기</button>`)};
+ sheet(`<h3>설정</h3><p class="setrow">글자 크기</p>${seg('zoom',zoomV,[[1,'보통'],[1.15,'크게'],[1.3,'아주 크게']])}<p class="setrow">화면</p>${seg('theme',themeV,[['light','밝게'],['dark','어둡게'],['auto','휴대폰 따라']])}
+ <p class="setrow">도움</p><button class="opt" data-help>${svg('help')}도움말</button><button class="opt" data-intro>${svg('play')}처음 안내 다시 보기</button>${reportBtn()}
+ <p class="setver">주찬양 플레이어 · 판 ${esc(window.BUILD||'')}</p><button class="pill" data-close style="margin-top:14px">닫기</button>`)};
 $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-set]');if(!b)return;const [k,v]=b.dataset.set.split(':');
  if(k==='zoom'){zoomV=+v;LS.set('zoom',zoomV)}else{themeV=v;LS.set('theme',themeV)}applySet();
  b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
@@ -433,9 +495,40 @@ const pre=new Audio();pre.preload='auto';pre.muted=true;
 function warmNext(){const n=queue[qi+1]||(repeat==='all'?queue[0]:null);if(!n||n.blob||n===queue[qi])return;const s=trackSrc(n);if(s&&pre.src!==new URL(s,location.href).href){pre.src=s;try{pre.load()}catch(e){}}}
 au.addEventListener('canplaythrough',warmNext);
 
+// ---------- 처음 안내 · 도움말 · 문제 알리기 · 별점 ----------
+const INTRO=[
+ ['듣기',`앨범에서 곡을 누르거나 <b>「차례로」</b>를 누르세요.<br>아래 재생 막대를 누르면 <b>큰 재생 화면</b>이 열립니다. 화면을 꺼도, 차에서도 계속 들립니다.`],
+ ['반주 · 가사 · 악보',`<b>반주 고르기</b>에서 앙상블·피아노·관현악을 바꿀 수 있습니다.<br>아래 메뉴 <b>「가사·악보」</b>를 누르면 지금 부르는 줄이 보입니다.`],
+ ['인터넷 없이 · 내 곡',`앨범 위 <b>「저장하기」</b>를 누르면 인터넷 없이 들을 수 있습니다.<br><b>「내 곡」</b>에는 휴대폰의 음악 파일을 넣어 들을 수 있습니다.`]];
+function intro(i=0){const [h,b]=INTRO[i];sheet(`<div class="intro"><p class="step">${i+1} / ${INTRO.length}</p><h3>${h}</h3><p>${b}</p>
+ <div class="bar">${i<INTRO.length-1?`<button class="pill" data-introgo="${i+1}">다음</button><button class="ghost" data-introend>건너뛰기</button>`:`<button class="pill" data-introend>시작하기</button>`}</div></div>`)}
+const HELP=[['곡이 안 나와요','인터넷을 확인하세요. 앨범 위 「저장하기」를 해 두면 인터넷 없이 들립니다.'],
+ ['차에서 다음 곡으로 넘기기','블루투스로 연결하면 운전대의 다음·이전 단추가 그대로 됩니다.'],
+ ['반주를 바꾸면?','지금 듣던 자리에서 그대로 이어집니다.'],
+ ['성부 듣기','큰 재생 화면의 「성부」를 누르면 소프라노·알토·테너·베이스를 따로 켜고 끄며 연습할 수 있습니다 (준비된 곡부터).'],
+ ['잠들기 타이머','큰 재생 화면의 「타이머」 — 정한 시간이 되면 소리를 천천히 줄이고 멈춥니다.'],
+ ['글자가 작아요','오른쪽 위 설정 → 글자 크기 「크게」·「아주 크게」.'],
+ ['내 곡은 어디에 저장되나요?','이 기기 안에만 저장됩니다. 다른 사람에게 보이지 않습니다.']];
+function help(){sheet(`<h3>도움말</h3>${HELP.map(([q,a])=>`<details class="faq"><summary>${q}</summary><p>${a}</p></details>`).join('')}<button class="pill" data-close style="margin-top:14px">닫기</button>`)}
+function reportText(){const L=ERR.list.slice(-15).map(e=>`${e.t} [판 ${e.b}] ${e.m}`).join('\n')||'(기록된 문제 없음)';
+ return `어떤 문제가 있었는지 적어 주세요:\n\n\n---- 자동으로 붙는 정보 ----\n판: ${window.BUILD||''}\n기기: ${navigator.userAgent}\n듣던 곡: ${queue[qi]?label(queue[qi]):''}\n최근 문제 기록:\n${L}`}
+// 받는 주소는 곡 목록(catalog.json)의 contact — 앱 업데이트 없이 바꿀 수 있음. 없으면 기록 복사 단추
+function reportBtn(){const c=CAT.contact;return c?`<a class="opt" href="mailto:${esc(c)}?subject=${encodeURIComponent('주찬양 플레이어 문제 알림')}&body=${encodeURIComponent(reportText())}">${svg('mail')}문제 알리기 (메일)</a>`:`<button class="opt" data-copyerr>${svg('mail')}문제 기록 복사하기</button>`}
+const PLAY_URL='https://play.google.com/store/apps/details?id=org.eshel.chanyang';
+function askRate(){if(!NATIVE||LS.get('rated',false))return;const n=LS.get('rateAsk',0);if(n>=2)return;LS.set('rateAsk',n+1);
+ setTimeout(()=>sheet(`<h3>앨범을 끝까지 들으셨네요</h3><p>은혜가 되셨다면 별점과 한 줄 평을 남겨 주세요. 다른 분들이 이 음악을 찾는 데 큰 힘이 됩니다.</p>
+ <div class="bar"><a class="pill" href="${PLAY_URL}" target="_blank" rel="noopener" data-rated>${svg('star')}별점 남기기</a><button class="ghost" data-close>나중에</button></div>`),800)}
+$('#sheet').addEventListener('click',e=>{
+ const g=e.target.closest('[data-introgo]');if(g){intro(+g.dataset.introgo);return}
+ if(e.target.closest('[data-introend]')){LS.set('intro1',true);$('#sheet').classList.remove('open');return}
+ if(e.target.closest('[data-intro]')){intro(0);return}
+ if(e.target.closest('[data-help]')){help();return}
+ if(e.target.closest('[data-copyerr]')){const s=reportText();(navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>toast('문제 기록을 복사했습니다 — 메일·문자에 붙여 넣어 보내 주세요')).catch(()=>toast('복사하지 못했습니다'));return}
+ if(e.target.closest('[data-rated]')){LS.set('rated',true);$('#sheet').classList.remove('open')}});
+
 // ---------- 시작 ----------
 (async()=>{
- $('#bplay').innerHTML=svg('play');$('#npPlay').innerHTML=svg('play'); applySet(); showRep(); $('#bver').textContent=window.BUILD?'판 '+window.BUILD:''; await DB.open(); mine=(await DB.all()).sort((a,b)=>a.added-b.added);
+ $('#bplay').innerHTML=svg('play');$('#npPlay').innerHTML=svg('play'); applySet(); showRep(); $('#bver').textContent=window.BUILD?'판 '+window.BUILD:''; await DB.open(); await OFF.load(); mine=(await DB.all()).sort((a,b)=>a.added-b.added);
  // 곡 목록: 저장소(인터넷)에서 새로 받고, 안 되면 마지막에 받은 것, 그것도 없으면 앱 안의 것
  const REMOTE='https://raw.githubusercontent.com/j63cho/Chanyang-media/main/catalog.json';
  let local=null; try{local=await (await fetch(window.CATALOG||'catalog.json')).json()}catch(e){}
@@ -450,5 +543,6 @@ au.addEventListener('canplaythrough',warmNext);
    const p=LS.get('pos',0);au.addEventListener('loadedmetadata',()=>{if(p<(au.duration||0)-3)au.currentTime=p},{once:true})}}
  if(!$('#pimg').getAttribute('src'))$('#pimg').src=CAT.albums[0]?.cover||'';
  render();
+ if(!LS.get('intro1',false))setTimeout(()=>{if(!$('#sheet').classList.contains('open'))intro(0)},600);
 })();
 }
