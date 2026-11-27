@@ -366,7 +366,7 @@ document.addEventListener('click',async e=>{
  if(b=g('data-mback')){mineAlb=null;LS.set('mineAlb',null);render();return}
  if(b=g('data-mplay')){const l=mineAlbums().get(b.dataset.mplay)||[];if(l.length){shuf=false;LS.set('shuf',false);$('#bshuf').classList.remove('on');setQueue(l,0,'mine:'+b.dataset.mplay)}return}
  if(b=g('data-mmix')){const l=mineAlbums().get(b.dataset.mmix)||[];if(l.length){setQueue(l,0,'mine:'+b.dataset.mmix,true);toast('섞어서 듣기')}return}
- if(e.target.id==='newalb'){sheet(`<h3>새 앨범</h3><p>앨범 이름을 쓰고 「곡 고르기」를 누르세요.<br>그 폴더의 곡을 모두 골라 주세요. (첫 곡을 길게 누르면 여러 곡을 고를 수 있습니다)</p><div class="bar"><input type="text" id="albName" placeholder="앨범 이름 (예: 꼭 알아야 할 교향곡)" maxlength="60"><button class="pill" id="albgo">곡 고르기</button></div><button class="ghost" data-close>그만두기</button>`);return}
+ if(e.target.id==='newalb'){sheet(`<h3>새 앨범</h3><p>앨범 이름을 쓰고 「곡 고르기」를 누르세요.<br>그 폴더의 곡을 모두 골라 주세요. (첫 곡을 길게 누르면 여러 곡을 고를 수 있습니다)</p><p class="hint">☁ <b>구글 드라이브·Dropbox</b>에 있는 곡은 파일 창 <b>왼쪽 위 ☰</b>를 누르고 「Drive」나 「Dropbox」를 고르세요. 고른 곡은 이 휴대폰 안에 저장되어 인터넷 없이도 들립니다.</p><div class="bar"><input type="text" id="albName" placeholder="앨범 이름 (예: 꼭 알아야 할 교향곡)" maxlength="60"><button class="pill" id="albgo">곡 고르기</button></div><button class="ghost" data-close>그만두기</button>`);return}
  if(e.target.id==='albgo'){const n=($('#albName').value||'').trim();if(!n){toast('앨범 이름을 써 주세요');return}if(n===NOALB){toast('다른 이름을 써 주세요');return}
   addTo=n;$('#sheet').classList.remove('open');$('#pick').click();return}
  if(b=g('data-maddto')){addTo=mineAlb===NOALB?null:mineAlb;$('#pick').click();return}
@@ -381,7 +381,9 @@ $('#pick').addEventListener('change',async e=>{
  for(const [i,f] of fs.entries()){const id='my-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   if(fs.length>3)toast(`넣는 중… ${i+1} / ${fs.length}`);
   const dur=await new Promise(r=>{const a=new Audio();a.preload='metadata';a.onloadedmetadata=()=>{r(a.duration||0);URL.revokeObjectURL(a.src)};a.onerror=()=>r(0);a.src=URL.createObjectURL(f)});
-  const s={id,title:f.name.replace(/\.[^.]+$/,''),blob:f,dur,added:Date.now()};
+  // 구글 드라이브·Dropbox 곡도 지금 휴대폰 안으로 받아 저장 (나중에 인터넷 없이도 들리게)
+  let blob=f;try{blob=new Blob([await f.arrayBuffer()],{type:f.type||'audio/mpeg'})}catch(err){}
+  const s={id,title:f.name.replace(/\.[^.]+$/,''),blob,dur,added:Date.now()};
   if(to)s.alb=to;
   if(await DB.put(s)){mine.push(s);ok++}}
  e.target.value='';
