@@ -304,7 +304,9 @@ function showLyr(){const t=queue[qi];const sc=hasScore(t);if(!sc&&lmode==='score
  if(lmode==='score'){$('#lyrIn').innerHTML=`<p class="sctitle">${esc(label(t))} · <span id="scpg"></span></p><div id="scoreBox"><p class="empty">악보 불러오는 중…</p></div>`;scoreTick()}
  else{$('#lyrIn').innerHTML=lyrHtml(t);lyrTick()}
  $('#lyr').scrollTop=0}
-function navSel(){document.querySelectorAll('.bnav button').forEach(b=>b.setAttribute('aria-selected',lyrOpen?b.id==='navLyr':b.dataset.tab===tab))}
+function navSel(){document.querySelectorAll('.bnav button').forEach(b=>b.setAttribute('aria-selected',lyrOpen?b.id==='navLyr':b.dataset.tab===tab));
+ // 라디오·성경 화면에서는 아래 플레이어를 숨기고 메뉴만 (보라색이 겹쳐 헷갈리지 않게)
+ const hide=!lyrOpen&&(tab==='radio'||tab==='bible');if(document.body.classList.contains('noplayer')!==hide){document.body.classList.toggle('noplayer',hide);try{fitPad()}catch(e){}}}
 function openLyr(){lyrOpen=true;fitPad();showLyr();$('#lyr').classList.add('open');navSel()}
 function closeLyr(){lyrOpen=false;$('#lyr').classList.remove('open');navSel()}
 $('#blyr').onclick=openLyr;$('#lyrClose').onclick=closeLyr;
