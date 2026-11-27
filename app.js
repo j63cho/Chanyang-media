@@ -481,16 +481,17 @@ $('#npSleep').onclick=()=>sheet(`<h3>잠들기 타이머</h3><p>정한 때가 �
 $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-sleep]');if(!b)return;const v=b.dataset.sleep;setSleep(v==='end'?'end':+v)});
 
 // ---------- 설정: 글자 크기 · 화면 밝기 ----------
-let zoomV=LS.get('zoom',1),themeV=LS.get('theme','light');
-function applySet(){document.documentElement.style.setProperty('--z',zoomV);
+let zoomV=LS.get('zoom',1),themeV=LS.get('theme','light'),fontV=LS.get('font','sans');
+const FONTS={sans:'"Noto Sans KR"',serif:'"Noto Serif KR",serif',sys:'system-ui'};
+function applySet(){document.documentElement.style.setProperty('--z',zoomV);document.documentElement.style.setProperty('--font',FONTS[fontV]||FONTS.sans);
  const th=themeV==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):themeV;document.documentElement.dataset.theme=th;
  document.querySelector('meta[name=theme-color]')?.setAttribute('content',th==='dark'?'#120e22':'#f7f4fc');fitPad()}
 $('#bset').onclick=()=>{const seg=(k,cur,opts)=>`<div class="seg">${opts.map(([v,n])=>`<button data-set="${k}:${v}" aria-pressed="${String(cur)===String(v)}">${n}</button>`).join('')}</div>`;
- sheet(`<h3>설정</h3><p class="setrow">글자 크기</p>${seg('zoom',zoomV,[[1,'보통'],[1.15,'크게'],[1.3,'아주 크게']])}<p class="setrow">화면</p>${seg('theme',themeV,[['light','밝게'],['dark','어둡게'],['auto','휴대폰 따라']])}
+ sheet(`<h3>설정</h3><p class="setrow">글자 크기</p>${seg('zoom',zoomV,[[1,'보통'],[1.15,'크게'],[1.3,'아주 크게']])}<p class="setrow">글꼴</p>${seg('font',fontV,[['sans','고딕'],['serif','명조'],['sys','휴대폰 글꼴']])}<p class="setrow">화면</p>${seg('theme',themeV,[['light','밝게'],['dark','어둡게'],['auto','휴대폰 따라']])}
  <p class="setrow">도움</p><button class="opt" data-help>${svg('help')}도움말</button><button class="opt" data-intro>${svg('play')}처음 안내 다시 보기</button>${reportBtn()}
  <p class="setver">주찬양 플레이어 · 판 ${esc(window.BUILD||'')}</p><button class="pill" data-close style="margin-top:14px">닫기</button>`)};
 $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-set]');if(!b)return;const [k,v]=b.dataset.set.split(':');
- if(k==='zoom'){zoomV=+v;LS.set('zoom',zoomV)}else{themeV=v;LS.set('theme',themeV)}applySet();
+ if(k==='zoom'){zoomV=+v;LS.set('zoom',zoomV)}else if(k==='font'){fontV=v;LS.set('font',fontV)}else{themeV=v;LS.set('theme',themeV)}applySet();
  b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 
 // 재생 막대 높이에 맞춰 아래 여백 맞추기 (글자 크기를 바꿔도 가리지 않게)
@@ -672,7 +673,7 @@ async function bShow(ref,title){if(!await bIndex()){toast('성경을 열 수 없
   try{const B=await bBook(p.i);h+=`<section class="bpass"><h4>${esc(p.label)}</h4>${bVerses(B,p.segs)}
   <button class="ghost bmore" data-bread="${p.i}|${p.segs[0][0]}">${svg('book')}${esc(B.n)} ${p.segs[0][0]}장 전체 읽기</button></section>`}catch(e){h+=`<p class="bmiss">${esc(p.label)} — 불러오지 못했습니다.</p>`}}
  h+=`<p class="bsrc">성경전서 개역한글판</p><button class="pill" data-close>닫기</button></div>`;sheet(h);$('#sheetIn').scrollTop=0}
-function bibleShell(){return `<section class="bible"><div class="btop"><button class="ghost" data-bpick="book" id="bBookBtn">${svg('book')}<b>…</b></button><button class="ghost" data-bpick="ch" id="bChBtn">…장</button><span class="bver">개역한글</span></div><div id="btext" class="btext"><p class="empty">불러오는 중…</p></div>
+function bibleShell(){return `<section class="bible"><div class="btop"><button class="ghost" data-bpick="book" id="bBookBtn">${svg('book')}<b>…</b></button><button class="ghost" data-bpick="ch" id="bChBtn">…장</button><span class="bver">개역한글</span><button class="ghost bfont" data-bset aria-label="글꼴과 글자 크기">가</button></div><div id="btext" class="btext"><p class="empty">불러오는 중…</p></div>
  <div class="bar bnavbar"><button class="ghost" data-bgo="-1">◀ 앞 장</button><button class="ghost" data-bgo="1">다음 장 ▶</button></div></section>`}
 async function bibleLoad(){const X=await bIndex();const t=$('#btext');if(!t)return;if(!X){t.innerHTML='<p class="empty">성경 파일을 열 수 없습니다.</p>';return}
  let {i,c}=bpos;i=Math.max(0,Math.min(65,i|0));c=Math.max(1,Math.min(X.books[i][2],c|0));bpos={i,c};LS.set('bpos',bpos);
@@ -685,6 +686,7 @@ function bPicker(kind){const X=BIDX;if(!X)return;
  else{const n=X.books[bpos.i][2];sheet(`<h3>${esc(X.books[bpos.i][0])} — 장 고르기</h3><div class="bgrid">${Array.from({length:n},(_,k)=>`<button class="bpk${k+1===bpos.c?' on':''}" data-bch="${k+1}">${k+1}</button>`).join('')}</div><button class="ghost" data-close>닫기</button>`)}}
 function bGo(i,c){bpos={i,c};LS.set('bpos',bpos);$('#sheet').classList.remove('open');if(tab!=='bible'){tab='bible';closeNP();closeLyr();render()}else bibleLoad();scrollTo(0,0)}
 document.addEventListener('click',e=>{let b;
+ if(e.target.closest('[data-bset]')){$('#bset').click();return}
  if(b=e.target.closest('[data-bref]')){bShow(b.dataset.bref,b.dataset.btitle);return}
  if(b=e.target.closest('[data-bread]')){const [i,c]=b.dataset.bread.split('|').map(Number);bGo(i,c);return}
  if(b=e.target.closest('[data-bpick]')){bPicker(b.dataset.bpick);return}
