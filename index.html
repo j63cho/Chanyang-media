@@ -136,7 +136,10 @@ body.noplayer .dock .player{display:none}
 .np.open{display:flex}
 .nptop{width:100%;max-width:560px;display:flex;justify-content:space-between;align-items:center;color:var(--soft);font-size:14px}
 .nptop .i{width:24px;height:24px}
-.np>img{width:min(74vw,30dvh,400px);aspect-ratio:1;object-fit:cover;border-radius:18px;box-shadow:0 14px 34px rgba(50,20,100,.28);margin:4px 0 8px;flex:none}
+.np>img{width:min(74vw,30dvh,max(80px,calc(100dvh - 470px)),400px);aspect-ratio:1;object-fit:cover;border-radius:18px;box-shadow:0 14px 34px rgba(50,20,100,.28);margin:4px 0 8px;flex:none}
+/* 사파리처럼 아래 주소창·메뉴가 화면을 차지해도 한 화면에 맞게: 보이는 높이(dvh)에 맞춤 */
+.np{bottom:auto;height:100dvh}
+@media (max-height:640px){.npt h2{font-size:20px}.npt p{font-size:13.5px}.npctl button{width:52px;height:52px}.npctl .big{width:70px;height:70px}.npmore button{min-height:48px!important;font-size:11.5px;padding:4px 0}.npmore .i{width:20px;height:20px}}
 #npClose{width:auto;padding:0 14px 0 6px;gap:4px;font-size:16px;font-weight:700;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:999px;min-height:42px}
 .npseek{margin:8px 0 0!important}.npctl{margin:2px 0 4px!important}.npmore button{min-height:56px!important}
 .npt{width:100%;max-width:560px;text-align:center}
