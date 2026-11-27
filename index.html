@@ -36,7 +36,7 @@ button:focus-visible,input:focus-visible,[role=button]:focus-visible{outline:3px
 [hidden]{display:none!important}
 
 /* 위 */
-header.top{position:sticky;top:0;z-index:8;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:calc(8px + env(safe-area-inset-top)) max(4vw,14px) 8px;border-bottom:3px solid var(--gold);transition:border-color .2s}
+header.top{position:sticky;top:0;z-index:8;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:calc(8px + var(--safe-area-inset-top,env(safe-area-inset-top,0px))) max(4vw,14px) 8px;border-bottom:3px solid var(--gold);transition:border-color .2s}
 #pgTitle{display:flex;align-items:center;gap:6px;color:var(--gold)}#pgTitle .i{width:22px;height:22px}#pgTitle b{font-size:21px;color:var(--ink)}
 body{transition:background-color .2s}
 .brand{display:flex;align-items:center;gap:10px;max-width:860px;margin:0 auto}
@@ -119,7 +119,7 @@ body.noplayer .dock .player{display:none}
 .pt small{color:var(--soft);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini>button{color:var(--ink)}
 .mini .big{width:50px;height:50px;border-radius:50%;background:var(--gold);color:var(--on)}
-.bnav{display:flex;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:2px 4px env(safe-area-inset-bottom)}
+.bnav{display:flex;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:2px 4px var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))}
 .bnav button{flex:1;flex-direction:column;gap:1px;font-size:12px;color:var(--soft);padding:6px 0 4px;border-radius:10px}
 .bnav button .i{width:23px;height:23px}
 .bnav button[aria-selected=true]{color:var(--gold);font-weight:700;background:var(--gold2);box-shadow:inset 0 3px 0 var(--gold)}
@@ -132,11 +132,13 @@ body.noplayer .dock .player{display:none}
 .pickbar{position:fixed;left:0;right:0;z-index:8;background:var(--gold2);border-top:1px solid var(--line);padding:8px max(4vw,14px)}
 
 /* 큰 재생 화면 */
-.np{position:fixed;inset:0;z-index:15;background:linear-gradient(180deg,var(--gold2) 0%,var(--bg) 60%);display:none;flex-direction:column;align-items:center;padding:calc(6px + env(safe-area-inset-top)) 6vw calc(18px + env(safe-area-inset-bottom));overflow:auto}
+.np{position:fixed;inset:0;z-index:15;background:linear-gradient(180deg,var(--gold2) 0%,var(--bg) 60%);display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(6px + var(--safe-area-inset-top,env(safe-area-inset-top,0px))) 6vw calc(18px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));overflow:auto}
 .np.open{display:flex}
 .nptop{width:100%;max-width:560px;display:flex;justify-content:space-between;align-items:center;color:var(--soft);font-size:14px}
-.nptop .i{width:28px;height:28px}
-.np>img{width:min(80vw,38vh,420px);aspect-ratio:1;object-fit:cover;border-radius:20px;box-shadow:0 18px 40px rgba(50,20,100,.3);margin:8px 0 18px}
+.nptop .i{width:24px;height:24px}
+.np>img{width:min(74vw,30dvh,400px);aspect-ratio:1;object-fit:cover;border-radius:18px;box-shadow:0 14px 34px rgba(50,20,100,.28);margin:4px 0 8px;flex:none}
+#npClose{width:auto;padding:0 14px 0 6px;gap:4px;font-size:16px;font-weight:700;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:999px;min-height:42px}
+.npseek{margin:8px 0 0!important}.npctl{margin:2px 0 4px!important}.npmore button{min-height:56px!important}
 .npt{width:100%;max-width:560px;text-align:center}
 .npt h2{font:700 clamp(21px,5.5vw,30px)/1.3 "Noto Serif KR",serif;margin:0 0 6px;word-break:keep-all;text-wrap:balance}
 .npt p{margin:0;color:var(--soft);font-size:15px;word-break:keep-all}
@@ -187,7 +189,7 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px;margin:0}
 /* 시트·알림 */
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(20,10,40,.45);display:none;align-items:flex-end;justify-content:center}
 .sheet.open{display:flex}
-.sheet>div{background:var(--card);width:min(560px,100%);border-radius:22px 22px 0 0;padding:20px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+.sheet>div{background:var(--card);width:min(560px,100%);border-radius:22px 22px 0 0;padding:20px 18px calc(18px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));max-height:80vh;overflow:auto}
 .sheet h3{margin:0 0 10px;font-family:"Noto Serif KR",serif}
 .sheet .opt{width:100%;justify-content:flex-start;padding:0 12px;border-bottom:1px solid var(--line);border-radius:0}
 .setrow{margin:14px 0 4px;font-weight:700}
@@ -311,7 +313,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 </div>
 
 <section class="np" id="np" aria-label="큰 재생 화면">
- <div class="nptop"><button id="npClose" data-ic="down" aria-label="닫기"></button><span id="npSrc"></span><span style="width:44px"></span></div>
+ <div class="nptop"><button id="npClose" data-ic="down" aria-label="돌아가기">돌아가기</button><span id="npSrc"></span><span style="width:44px"></span></div>
  <img id="npImg" alt="">
  <div class="npt"><h2 id="npTitle"></h2><p id="npSub"></p></div>
  <div class="npseek"><input type="range" id="npPos" min="0" max="1000" value="0" aria-label="재생 위치"><div class="nptime"><span id="npCur">0:00</span><span id="npDur">0:00</span></div></div>
