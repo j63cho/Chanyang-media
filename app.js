@@ -488,7 +488,7 @@ function sleepTick(){if(!sleepAt)return;const left=sleepAt-Date.now();
 setInterval(sleepTick,1000);au.addEventListener('timeupdate',sleepTick);
 au.addEventListener('play',()=>{if(!sleepAt){fadeF=1;applyPartVols()}});
 $('#npSleep').onclick=()=>sheet(`<h3>잠들기 타이머</h3><p>정한 때가 되면 소리를 천천히 줄이고 멈춥니다.</p>${[15,30,45,60,90].map(m=>`<button class="opt" data-sleep="${m}">${m}분 뒤</button>`).join('')}<button class="opt" data-sleep="end">이 곡이 끝나면</button>${sleepAt||sleepEnd?'<button class="opt" data-sleep="0">타이머 끄기</button>':''}<button class="ghost" data-close style="margin-top:10px">닫기</button>`);
-$('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-sleep]');if(!b)return;const v=b.dataset.sleep;setSleep(v==='end'?'end':+v)});
+$('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-sleep]');if(!b)return;const v=b.dataset.sleep;setSleep(v==='end'?'end':+v);if(tab==='radio')render()});
 
 // ---------- 설정: 글자 크기 · 화면 밝기 ----------
 let zoomV=LS.get('zoom',1),themeV=LS.get('theme','light'),fontV=LS.get('font','sans');
@@ -722,11 +722,12 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  <div class="nowcard"><img src="${esc(cur.album.cover)}" alt=""><div><small>${on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${esc(cur.part||'')}${v?' · '+esc(v.name):''}</small></div></div>
  ${dn?`<p class="rnote"><small>진행자의 말</small>${esc(dn)}</p>`:R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>이 곡의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
  ${nx?`<p class="nextup">다음 곡 · ${esc(label(nx))}</p>`:''}
- <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}끝없이 섞어 듣기</button></div>
+ <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}끝없이 섞어 듣기</button><button class="ghost${sleepAt||sleepEnd?' on':''}" data-radio="sleep">${svg('moon')}${sleepAt?Math.max(1,Math.ceil((sleepAt-Date.now())/60000))+'분 뒤 멈춤':sleepEnd?'곡 끝나면 멈춤':'잠들기 타이머'}</button></div>
  <p class="rhelp">시간표 라디오는 같은 시간대에 있는 사람이 모두 같은 곡을 함께 듣습니다. 곡이 끝나면 다음 곡이, 시간이 바뀌면 다음 프로그램이 이어집니다.</p>
  <h2 class="part"><span>오늘 방송표</span></h2><ul class="sched">${lst}</ul></section>`}
 $('#view').addEventListener('click',e=>{const r=e.target.closest('[data-rclplay]');if(r){const [aid,n]=r.dataset.rclplay.split('|');const a=album(aid);const l=a.tracks.map(t=>({...t,album:a}));const i=l.findIndex(t=>String(t.n)===n);if(i>=0)setQueue(l,i,'album:'+a.id);return}});
 $('#view').addEventListener('click',e=>{const b=e.target.closest('[data-radio]');if(!b)return;
+ if(b.dataset.radio==='sleep'){$('#npSleep').click();return}
  if(b.dataset.radio==='live'){if(queue.src==='radio'&&!au.paused){au.pause();render();return}radioTune(true)}else radioMix()});
 setInterval(()=>{if(tab==='radio'&&!npOpen&&!lyrOpen&&!$('#sheet').classList.contains('open'))render()},20000);
 au.addEventListener('play',()=>{if(tab==='radio')render()});au.addEventListener('pause',()=>{if(tab==='radio')render()});
