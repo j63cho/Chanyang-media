@@ -706,6 +706,29 @@ document.addEventListener('click',e=>{let b;
  if(b=e.target.closest('[data-bgo]')){const X=BIDX;if(!X)return;let {i,c}=bpos;c+=+b.dataset.bgo;
   if(c<1){if(i>0){i--;c=X.books[i][2]}else c=1}else if(c>X.books[i][2]){if(i<65){i++;c=1}else c=X.books[i][2]}
   bGo(i,c)}});
+// ---------- 오늘 읽을 말씀 — 「교회력으로 읽는 1년 성경」(우리 읽기표, RCL 대신) ----------
+let RPLAN=null,rdone=LS.get('rdone',{});
+async function loadPlan(){try{const r=await fetch('reading.json');if(r.ok)RPLAN=await r.json()}catch(e){}}
+function planDay(now=new Date()){if(!RPLAN)return null;const s=new Date(RPLAN.start+'T00:00:00'),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ let k=Math.round((d-s)/864e5),before=false;if(k<0){before=true;k=0}if(k>=RPLAN.days.length)return {over:true};
+ const x=new Date(s);x.setDate(s.getDate()+k);const key=`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+ return {k,key,date:x,before,day:RPLAN.days[k]}}
+function readHtml(){const P=planDay();if(!P)return '';
+ if(P.over)return `<div class="rcl"><h3>올해 읽기표를 다 마쳤습니다</h3><p class="rclsrc">새 교회력 읽기표가 곧 들어옵니다.</p></div>`;
+ const [si,ot,nt,ps,lc]=P.day,sp=RPLAN.special[P.key]||RPLAN.seasons[si],ds=`${P.date.getMonth()+1}월 ${P.date.getDate()}일`,done=!!rdone[P.key];
+ const row=(l,r,i)=>`<li><small>${l}</small><button class="bref" data-rplan="${P.k}|${i}">${esc(r[0])}</button></li>`;
+ return `<div class="rcl"><div class="rclh"><span class="chip">${P.before?'시작하는 날':'오늘 읽을 말씀'} · ${ds}</span><span class="chip soft">${lc&&RPLAN.colors?`<i class="lcd" style="background:${RPLAN.colors[lc]}" title="교회력 색 ${lc}"></i>`:''}${esc(sp)}${lc?` · ${lc}`:''}</span></div>
+ <h3>${P.before?ds+'부터 시작합니다':'교회력으로 읽는 1년 성경'}</h3><ul>${row('구약',ot,1)}${row('신약',nt,2)}${row('시편·잠언',ps,3)}</ul>
+ ${P.before?'':`<div class="bar rdone"><button class="${done?'pill':'ghost'}" data-rdone="${P.key}">${svg('check')}${done?'오늘 다 읽었습니다':'다 읽으면 누르세요'}</button></div>`}
+ <p class="rclsrc">교회력으로 읽는 1년 성경 · 구약과 신약을 절기에 맞춰 함께 · 성경전서 개역한글판</p></div>`}
+async function showPlan(k,i){if(!await bIndex()){toast('성경을 열 수 없습니다');return}const d=RPLAN.days[k],part=d[i],L=['','구약','신약','시편·잠언'];
+ let h=`<div class="bsheet"><h3>${L[i]} · ${esc(part[0])}</h3>`;
+ for(const [b,c1,v1,c2,v2] of part[1]){const B=await bBook(b);h+=`<section class="bpass"><h4>${esc(B.n)}</h4>${bVerses(B,[[c1,v1,c2,v2]])}</section>`}
+ h+=`<div class="bar">${i<3?`<button class="pill" data-rplan="${k}|${i+1}">다음 · ${L[i+1]} 읽기</button>`:''}<button class="ghost" data-close>닫기</button></div><p class="bsrc">성경전서 개역한글판</p></div>`;
+ sheet(h);$('#sheetIn').scrollTop=0}
+document.addEventListener('click',e=>{let b;
+ if(b=e.target.closest('[data-rplan]')){const [k,i]=b.dataset.rplan.split('|').map(Number);showPlan(k,i);return}
+ if(b=e.target.closest('[data-rdone]')){const key=b.dataset.rdone;if(rdone[key])delete rdone[key];else{rdone[key]=1;toast('오늘 말씀을 다 읽었습니다')}LS.set('rdone',rdone);if(tab==='radio')render();return}});
 const hm=h=>`${String(h%24).padStart(2,'0')}:00`;
 function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오에 틀 곡이 아직 없습니다.</p>';
  const on=queue.src==='radio'&&!au.paused,cur=on?queue[qi]:R.pool[R.i],nx=on?queue[qi+1]:R.pool[(R.i+1)%R.pool.length];
@@ -717,7 +740,7 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  return `<section class="radio">
  <div class="onair"><i></i>주찬양 라디오 · 지금 방송 중</div>
  <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>
- ${rclHtml()}
+ ${readHtml()}
  <div class="rprog"><b>${esc(R.P.name)}</b><small>${hm(R.P.from)}–${hm(R.P.to)} · ${esc(R.P.desc)}</small></div>
  <div class="nowcard"><img src="${esc(cur.album.cover)}" alt=""><div><small>${on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${esc(cur.part||'')}${v?' · '+esc(v.name):''}</small></div></div>
  ${dn?`<p class="rnote"><small>진행자의 말</small>${esc(dn)}</p>`:R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>이 곡의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
@@ -780,6 +803,7 @@ $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-shplay]
   if(r.ok){const j=await r.json();if(j&&Array.isArray(j.albums)&&j.albums.length){CAT=j;LS.set('cat',j)}}}catch(e){}
  await loadRadio(isWeb&&!!window.CATALOG);
  await loadRcl(isWeb&&!!window.CATALOG);
+ await loadPlan();
  if(!album(albumId))albumId=CAT.albums[0]?.id;
  const last=LS.get('last',null);
  if(last){const m=allTracks();const l=(last.ids||[]).map(id=>m[id]).filter(Boolean);const i=l.findIndex(t=>t.id===last.id);
