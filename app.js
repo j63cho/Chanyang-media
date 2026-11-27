@@ -40,7 +40,8 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  star:'<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.3l1.1-6.2L3 9.7l6.2-.9z"/>',
  radio:'<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="m7 8 10-5"/><circle cx="15.5" cy="14" r="2.8"/><path d="M6.5 12h3M6.5 16h3"/>',
  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
- trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'};
+ trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+ book:'<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5A2.5 2.5 0 0 1 6.5 19H20v3H6.5"/><path d="M12 6v7M9 8.5h6"/>'};
 const svg=k=>`<svg viewBox="0 0 24 24" class="i" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(e=>e.insertAdjacentHTML('afterbegin',svg(e.dataset.ic)));
 const EQ='<span class="eq" aria-label="재생 중"><i></i><i></i><i></i></span>';
@@ -127,6 +128,7 @@ function render(){ pickBar();
  navSel();
  const v=$('#view'); const cur=queue[qi];
  if(tab==='radio'){v.innerHTML=radioHtml();return}
+ if(tab==='bible'){v.innerHTML=bibleShell();bibleLoad();return}
  if(tab==='album'){
   const a=album(albumId)||CAT.albums[0]; if(!a){v.innerHTML='<p class="empty">앨범이 없습니다.</p>';return}
   albumId=a.id; let h='';
@@ -635,12 +637,62 @@ function rclSongs(k){const e=rclEntry(k);if(!e)return [];const refs=rclRefs(e),t
  return out}
 function rclHtml(){const k=rclNext();const e=rclEntry(k);if(!e)return '';
  const dt=k.date,ds=`${dt.getMonth()+1}월 ${dt.getDate()}일`,songs=rclSongs(k);
- const row=(l,r)=>r?`<li><small>${l}</small><span>${esc(r)}</span></li>`:'';
+ const row=(l,r)=>r?`<li><small>${l}</small><button class="bref" data-bref="${esc(r)}" data-btitle="${esc(k.name+' · '+l.replace(/ [①②]/,''))}">${esc(r)}</button></li>`:'';
  const two=e.o2?`<li class="rtrack"><small>본문 선택</small><span>이어 읽기 본문과 복음에 맞춘 본문 가운데 하나를 고릅니다.</span></li>${row('구약 ①',e.o)}${row('시편 ①',e.p)}${row('구약 ②',e.o2)}${row('시편 ②',e.p2)}`:`${row(/^사도행전/.test(e.o)?'첫째 본문':'구약',e.o)}${row('시편',e.p)}`;
  return `<div class="rcl"><div class="rclh"><span class="chip">${k.today?'오늘':'이번 주일'} · ${ds}</span><span class="chip soft">${k.y}해</span></div>
  <h3>${esc(k.name)}</h3><ul>${two}${row('서신',e.e)}${row('복음',e.g)}</ul>
  ${songs.length?`<div class="rclsongs"><small>이 본문과 이어지는 곡</small>${songs.slice(0,4).map(t=>`<button class="rsong" data-rclplay="${esc(t.album.id)}|${esc(t.n)}">${svg('play')}${esc(label(t))}</button>`).join('')}</div>`:''}
  <p class="rclsrc">개정공동성구집(RCL) · 본문 목록 밴더빌트 신학대학 도서관</p></div>`}
+// ---------- 성경 읽기 (개역한글) ----------
+let BIDX=null;const BCACHE={};let bpos=LS.get('bpos',{i:0,c:1});
+async function bIndex(){if(BIDX)return BIDX;try{BIDX=await (await fetch('bible/index.json')).json()}catch(e){}return BIDX}
+async function bBook(i){if(BCACHE[i])return BCACHE[i];const r=await fetch(`bible/${String(i+1).padStart(2,'0')}.json`);if(!r.ok)throw new Error('bible '+i);return BCACHE[i]=await r.json()}
+// "이사야 58:1-9a, (9b-12)" "시편 42·43" "창세기 2:15-17; 3:1-7" "마가복음 11:1-11 또는 요한복음 12:12-16"
+function bParse(s){const out=[];
+ for(const opt of String(s).split(/ 또는 |; (?=[가-힣])/)){
+  const m=opt.trim().match(/^([가-힣]+)(\([^)]*\))?(?: (.+))?$/);if(!m)continue;
+  const i=BIDX.books.findIndex(b=>b[0]===m[1]);if(i<0){out.push({label:opt.trim(),missing:true});continue}
+  const spec=(m[3]||'').replace(/[()]/g,'').replace(/(\d)[a-c]\b/g,'$1').replace(/\s+/g,' ').trim();
+  const segs=[];let ch=null;
+  if(spec&&!spec.includes(':')){for(const c of spec.split(/[·,]\s*/))if(+c)segs.push([+c,1,+c,999])}
+  else for(let part of spec.split(/[;,]\s*/)){part=part.trim();if(!part)continue;
+   let r=part.match(/^(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?$/);
+   if(r){ch=+r[1];const c2=r[3]?+r[3]:ch,v2=r[4]?+r[4]:+r[2];segs.push([ch,+r[2],c2,v2]);ch=c2;continue}
+   r=part.match(/^(\d+)(?:-(\d+))?$/);
+   if(r&&ch){segs.push([ch,+r[1],ch,r[2]?+r[2]:+r[1]]);continue}}
+  if(segs.length)out.push({label:opt.trim(),i,segs})}
+ return out}
+function bVerses(B,segs){const multi=new Set(segs.flatMap(s=>[s[0],s[2]])).size>1,seen=new Set();let h='';
+ for(const [c1,v1,c2,v2] of segs)for(let c=c1;c<=c2;c++){const vs=B.c[c-1]||[];const a=c===c1?v1:1,z=Math.min(c===c2?v2:vs.length,vs.length);
+  for(let v=a;v<=z;v++){if(seen.has(c+':'+v))continue;seen.add(c+':'+v);h+=`<p class="bv"><sup>${multi?c+':':''}${v}</sup>${esc(vs[v-1])}</p>`}}
+ return h}
+async function bShow(ref,title){if(!await bIndex()){toast('성경을 열 수 없습니다');return}
+ const ps=bParse(ref);let h=`<div class="bsheet"><h3>${esc(title||ref)}</h3>`;
+ for(const p of ps){if(p.missing){h+=`<p class="bmiss">${esc(p.label)} — 개역한글(정경 66권)에는 없는 책입니다.</p>`;continue}
+  try{const B=await bBook(p.i);h+=`<section class="bpass"><h4>${esc(p.label)}</h4>${bVerses(B,p.segs)}
+  <button class="ghost bmore" data-bread="${p.i}|${p.segs[0][0]}">${svg('book')}${esc(B.n)} ${p.segs[0][0]}장 전체 읽기</button></section>`}catch(e){h+=`<p class="bmiss">${esc(p.label)} — 불러오지 못했습니다.</p>`}}
+ h+=`<p class="bsrc">성경전서 개역한글판</p><button class="pill" data-close>닫기</button></div>`;sheet(h);$('#sheetIn').scrollTop=0}
+function bibleShell(){return `<section class="bible"><div class="btop"><button class="ghost" data-bpick="book" id="bBookBtn">${svg('book')}<b>…</b></button><button class="ghost" data-bpick="ch" id="bChBtn">…장</button><span class="bver">개역한글</span></div><div id="btext" class="btext"><p class="empty">불러오는 중…</p></div>
+ <div class="bar bnavbar"><button class="ghost" data-bgo="-1">◀ 앞 장</button><button class="ghost" data-bgo="1">다음 장 ▶</button></div></section>`}
+async function bibleLoad(){const X=await bIndex();const t=$('#btext');if(!t)return;if(!X){t.innerHTML='<p class="empty">성경 파일을 열 수 없습니다.</p>';return}
+ let {i,c}=bpos;i=Math.max(0,Math.min(65,i|0));c=Math.max(1,Math.min(X.books[i][2],c|0));bpos={i,c};LS.set('bpos',bpos);
+ const B=await bBook(i);if(tab!=='bible')return;
+ $('#bBookBtn b').textContent=B.n;$('#bChBtn').textContent=c+'장';
+ t.innerHTML=`<h2 class="bch">${esc(B.n)} ${c}장</h2>`+bVerses(B,[[c,1,c,999]])}
+function bPicker(kind){const X=BIDX;if(!X)return;
+ if(kind==='book'){const g=(a,z)=>X.books.slice(a,z).map((b,k)=>`<button class="bpk${a+k===bpos.i?' on':''}" data-bbook="${a+k}" title="${esc(b[0])}">${esc(b[1])}</button>`).join('');
+  sheet(`<h3>성경 고르기</h3><h4 class="bgh">구약</h4><div class="bgrid">${g(0,39)}</div><h4 class="bgh">신약</h4><div class="bgrid">${g(39,66)}</div><button class="ghost" data-close>닫기</button>`)}
+ else{const n=X.books[bpos.i][2];sheet(`<h3>${esc(X.books[bpos.i][0])} — 장 고르기</h3><div class="bgrid">${Array.from({length:n},(_,k)=>`<button class="bpk${k+1===bpos.c?' on':''}" data-bch="${k+1}">${k+1}</button>`).join('')}</div><button class="ghost" data-close>닫기</button>`)}}
+function bGo(i,c){bpos={i,c};LS.set('bpos',bpos);$('#sheet').classList.remove('open');if(tab!=='bible'){tab='bible';closeNP();closeLyr();render()}else bibleLoad();scrollTo(0,0)}
+document.addEventListener('click',e=>{let b;
+ if(b=e.target.closest('[data-bref]')){bShow(b.dataset.bref,b.dataset.btitle);return}
+ if(b=e.target.closest('[data-bread]')){const [i,c]=b.dataset.bread.split('|').map(Number);bGo(i,c);return}
+ if(b=e.target.closest('[data-bpick]')){bPicker(b.dataset.bpick);return}
+ if(b=e.target.closest('[data-bbook]')){bpos={i:+b.dataset.bbook,c:1};LS.set('bpos',bpos);bPicker('ch');return}
+ if(b=e.target.closest('[data-bch]')){bGo(bpos.i,+b.dataset.bch);return}
+ if(b=e.target.closest('[data-bgo]')){const X=BIDX;if(!X)return;let {i,c}=bpos;c+=+b.dataset.bgo;
+  if(c<1){if(i>0){i--;c=X.books[i][2]}else c=1}else if(c>X.books[i][2]){if(i<65){i++;c=1}else c=X.books[i][2]}
+  bGo(i,c)}});
 const hm=h=>`${String(h%24).padStart(2,'0')}:00`;
 function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오에 틀 곡이 아직 없습니다.</p>';
  const on=queue.src==='radio'&&!au.paused,cur=on?queue[qi]:R.pool[R.i],nx=on?queue[qi+1]:R.pool[(R.i+1)%R.pool.length];

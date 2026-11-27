@@ -225,6 +225,24 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 .rsong{justify-content:flex-start;background:color-mix(in srgb,var(--gold) 9%,transparent);padding:6px 10px;font-size:15.5px;text-align:left}
 .rsong svg{width:18px;height:18px;flex:none;color:var(--gold)}
 .rclsrc{margin:8px 0 0;font-size:12px;color:var(--soft)}
+.rcl li .bref{flex:1;justify-content:flex-start;text-align:left;min-height:0;padding:0;font-size:16px;line-height:1.5;color:var(--ink);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--gold) 45%,transparent);text-underline-offset:4px;border-radius:4px}
+.bsheet h3{margin-bottom:4px}
+.bpass h4{margin:14px 0 6px;color:var(--gold);font-size:15px}
+.bv{margin:0 0 6px;font-size:17.5px;line-height:1.75;word-break:keep-all}
+.bv sup{color:var(--gold);font-weight:700;font-size:12px;margin-right:4px;vertical-align:top;position:relative;top:4px}
+.bmiss{color:var(--soft);font-size:15px}
+.bsrc{font-size:12px;color:var(--soft);margin:12px 0}
+.bmore{margin-top:4px}
+.bible .btop{display:flex;gap:6px;align-items:center;position:sticky;top:56px;z-index:2;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--line)}
+.bible .btop b{font-size:17px}
+.bver{margin-left:auto;font-size:13px;color:var(--soft)}
+.bch{font-family:"Noto Serif KR",serif;font-size:22px;margin:14px 0 10px}
+.btext .bv{font-size:18.5px;line-height:1.85}
+.bnavbar{justify-content:space-between;margin:14px 0 24px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px;margin-bottom:10px}
+.bpk{background:var(--card);border:1px solid var(--line);font-size:15px;min-height:44px;padding:0 4px}
+.bpk.on{background:var(--gold);color:var(--on);border-color:var(--gold)}
+.bgh{margin:10px 0 6px;color:var(--gold);font-size:14px}
 .seg.wrap{flex-wrap:wrap;width:100%;border-radius:14px}.seg.wrap button{flex:1 0 30%}
 @media (max-width:520px){.hero{grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:14px}}
 @media (prefers-reduced-motion:reduce){.toast,.lyrin p{transition:none}.eq i{animation:none;height:10px}}
@@ -259,6 +277,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
   <button role="tab" data-tab="mine" data-ic="note" aria-selected="false">내 곡</button>
   <button role="tab" data-tab="lists" data-ic="list" aria-selected="false">재생 목록</button>
   <button role="tab" data-tab="radio" data-ic="radio" aria-selected="false">라디오</button>
+  <button role="tab" data-tab="bible" data-ic="book" aria-selected="false">성경</button>
   <button role="tab" id="navLyr" data-ic="lyrics" aria-selected="false">가사·악보</button>
  </nav>
 </div>
