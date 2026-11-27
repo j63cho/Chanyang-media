@@ -14,8 +14,19 @@
    (변수 이름 --gold는 '강조색'이라는 뜻으로 그대로 씀 — 지금 강조색은 보라) */
 :root{color-scheme:light;--z:1;
  --bg:#f7f4fc;--card:#ffffff;--ink:#231a38;--soft:#6d6585;--line:#e7e0f1;--gold:#6b3fa6;--gold2:#efe7fa;--on:#ffffff;--shadow:0 6px 24px rgba(60,30,110,.10)}
+/* 메뉴마다 색: 앨범 보라 · 내 곡 초록 · 재생 목록 파랑 · 라디오 주황빨강 · 성경 갈색 · 가사·악보 청록 */
+body[data-tab=mine]{--gold:#2e7d5b;--gold2:#e1f2e8;--bg:#f3f9f5;--line:#d9ebe0}
+body[data-tab=lists]{--gold:#2f62b3;--gold2:#e2ebfa;--bg:#f3f6fc;--line:#dbe3f2}
+body[data-tab=radio]{--gold:#c2452d;--gold2:#fbe6e0;--bg:#fcf5f3;--line:#f0dcd6}
+body[data-tab=bible]{--gold:#8a5a1f;--gold2:#f4eadb;--bg:#faf6ef;--line:#ece1d0}
+body[data-tab=lyr]{--gold:#0f7c8a;--gold2:#dcf0f2;--bg:#f2f9fa;--line:#d4e8eb}
 :root[data-theme=dark]{color-scheme:dark;
  --bg:#120e22;--card:#1c1632;--ink:#f2edfb;--soft:#a9a0c2;--line:#2f2749;--gold:#b897ee;--gold2:#2c2348;--on:#160f2a;--shadow:0 6px 24px rgba(0,0,0,.35)}
+:root[data-theme=dark] body[data-tab=mine]{--gold:#6fd3a2;--gold2:#16332a;--bg:#0f1a16;--line:#22382f}
+:root[data-theme=dark] body[data-tab=lists]{--gold:#8db4f5;--gold2:#1a2742;--bg:#0f1420;--line:#25304a}
+:root[data-theme=dark] body[data-tab=radio]{--gold:#f29a83;--gold2:#3a1d17;--bg:#1a100e;--line:#3e2621}
+:root[data-theme=dark] body[data-tab=bible]{--gold:#e0b57a;--gold2:#33261a;--bg:#18130d;--line:#3a2d1f}
+:root[data-theme=dark] body[data-tab=lyr]{--gold:#6fd0dc;--gold2:#163236;--bg:#0d1819;--line:#21393c}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--font,"Noto Sans KR"),system-ui,sans-serif;overflow-x:clip;padding-bottom:170px;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;min-height:44px;min-width:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -25,7 +36,9 @@ button:focus-visible,input:focus-visible,[role=button]:focus-visible{outline:3px
 [hidden]{display:none!important}
 
 /* 위 */
-header.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:calc(8px + env(safe-area-inset-top)) max(4vw,14px) 8px;border-bottom:1px solid var(--line)}
+header.top{position:sticky;top:0;z-index:8;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:calc(8px + env(safe-area-inset-top)) max(4vw,14px) 8px;border-bottom:3px solid var(--gold);transition:border-color .2s}
+#pgTitle{display:flex;align-items:center;gap:6px;color:var(--gold)}#pgTitle .i{width:22px;height:22px}#pgTitle b{font-size:21px;color:var(--ink)}
+body{transition:background-color .2s}
 .brand{display:flex;align-items:center;gap:10px;max-width:860px;margin:0 auto}
 .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,#7b4bbd,#4e2a86);display:grid;place-items:center;color:#f1c96b;flex:none;box-shadow:0 3px 10px rgba(80,40,140,.3)}
 .logo .i{width:16px;height:16px}
@@ -33,6 +46,7 @@ header.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg
 .bname{display:flex;flex-direction:column;line-height:1.2;overflow:hidden}
 #bver{color:var(--soft);font-size:11.5px;white-space:nowrap}
 #bpick{margin-left:auto;white-space:nowrap;font-size:15px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+#bpick[hidden]{display:none}#bpick[hidden]+#bset{margin-left:auto}
 #bpick.on{background:var(--gold);color:var(--on);border-color:var(--gold)}
 #bset{color:var(--soft)}
 
@@ -103,7 +117,12 @@ body.noplayer .dock .player{display:none}
 .bnav{display:flex;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:2px 4px env(safe-area-inset-bottom)}
 .bnav button{flex:1;flex-direction:column;gap:1px;font-size:12px;color:var(--soft);padding:6px 0 4px;border-radius:10px}
 .bnav button .i{width:23px;height:23px}
-.bnav button[aria-selected=true]{color:var(--gold);font-weight:700}
+.bnav button[aria-selected=true]{color:var(--gold);font-weight:700;background:var(--gold2);box-shadow:inset 0 3px 0 var(--gold)}
+.ecard{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 20px;margin:18px 0;text-align:center;box-shadow:var(--shadow)}
+.ecard .eic{display:inline-grid;place-items:center;width:58px;height:58px;border-radius:50%;background:var(--gold2);color:var(--gold)}.ecard .eic .i{width:30px;height:30px}
+.ecard h3{margin:12px 0 6px;font-size:19px}.ecard p{margin:0 0 16px;color:var(--soft);line-height:1.65;word-break:keep-all}
+.ecard .bar,.ecard form{justify-content:center;margin:0}
+.lyrin .ecard{font-family:var(--font,"Noto Sans KR"),sans-serif}.lyrin .ecard h3{font:700 19px var(--font,"Noto Sans KR"),sans-serif;color:var(--ink);letter-spacing:0;margin:12px 0 6px}.lyrin .ecard p{font-size:16px;line-height:1.65;color:var(--soft);opacity:1;transform:none;margin:0 0 16px}
 .pickbar{position:fixed;left:0;right:0;z-index:8;background:var(--gold2);border-top:1px solid var(--line);padding:8px max(4vw,14px)}
 
 /* 큰 재생 화면 */
@@ -137,11 +156,11 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px;margin:0}
 #partsBox button:disabled{opacity:.45}
 
 /* 가사·악보 */
-.lyr{position:fixed;inset:0;z-index:7;background:var(--bg);overflow:auto;display:none;padding:calc(4px + env(safe-area-inset-top)) max(3vw,10px) 24px}
+.lyr{position:fixed;inset:0;top:var(--hh,60px);z-index:7;background:var(--bg);overflow:auto;display:none;padding:4px max(3vw,10px) 24px}
 .lyr.open{display:block}
 .lyrtop{position:sticky;top:0;z-index:2;background:var(--bg);padding:4px 0;display:flex;gap:8px;align-items:center;max-width:1100px;margin:0 auto}
 .lyrtop .seg{margin:0 0 0 auto}
-.lyrtop #lyrClose{padding:0 12px 0 6px}
+.lyrtop #lyrClose{display:none}
 .lyrin{max-width:640px;margin:0 auto;text-align:center}
 .lyrin.wide{max-width:1100px}
 .lyrin h2{font-size:24px;margin:4px 0 14px;word-break:keep-all}.lyrin .lnum{color:var(--gold);margin:8px 0 0;font-family:"Noto Sans KR",sans-serif;font-size:14px}
@@ -192,7 +211,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 .onair i{width:10px;height:10px;border-radius:50%;background:#e0313a;box-shadow:0 0 0 0 rgba(224,49,58,.6);animation:air 1.6s infinite}
 @keyframes air{0%{box-shadow:0 0 0 0 rgba(224,49,58,.55)}70%{box-shadow:0 0 0 10px rgba(224,49,58,0)}100%{box-shadow:0 0 0 0 rgba(224,49,58,0)}}
 .radio h1{font:700 clamp(26px,6vw,38px)/1.2 "Noto Serif KR",serif;margin:6px 0 12px}
-.radio .rprog{background:linear-gradient(135deg,#6b3fa6,#4e2a86);color:#fff;border-radius:16px;padding:14px 16px;margin-bottom:12px}
+.radio .rprog{background:linear-gradient(135deg,var(--gold),color-mix(in srgb,var(--gold) 65%,#000));color:#fff;border-radius:16px;padding:14px 16px;margin-bottom:12px}
 .radio .rprog b{display:block;font-size:21px}.radio .rprog small{opacity:.9;font-size:14px}
 .nowcard{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px}
 .nowcard img{width:72px;height:72px;border-radius:12px;object-fit:cover}
@@ -234,7 +253,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 .bmiss{color:var(--soft);font-size:15px}
 .bsrc{font-size:12px;color:var(--soft);margin:12px 0}
 .bmore{margin-top:4px}
-.bible .btop{display:flex;gap:6px;align-items:center;position:sticky;top:56px;z-index:2;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--line)}
+.bible .btop{display:flex;gap:6px;align-items:center;position:sticky;top:var(--hh,60px);z-index:2;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--line)}
 .bible .btop b{font-size:17px}
 .bver{margin-left:auto;font-size:13px;color:var(--soft)}
 .bch{font-family:"Noto Serif KR",serif;font-size:22px;margin:14px 0 10px}
@@ -255,7 +274,7 @@ a.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decor
 <header class="top">
   <div class="brand">
    <span class="logo" data-ic="play"></span>
-   <span class="bname"><span class="name serif">주찬양 플레이어</span><small id="bver"></small></span>
+   <span class="bname"><span class="name" id="pgTitle"></span><small id="bver"></small></span>
    <button id="bpick" data-ic="check">골라 듣기</button>
    <button id="bset" class="icon" data-ic="gear" aria-label="설정" title="설정"></button>
   </div>

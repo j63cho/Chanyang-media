@@ -148,9 +148,10 @@ function render(){ pickBar();
   const A=mineAlbums(); if(mineAlb&&!A.has(mineAlb))mineAlb=null;
   let h='';
   if(!mineAlb){
-   h=`<div class="bar"><button class="pill" id="newalb">${svg('plus')}새 앨범 만들고 곡 넣기</button></div>`;
+   const nb=`<button class="pill" id="newalb">${svg('plus')}새 앨범 만들고 곡 넣기</button>`;
+   h= A.size?`<div class="bar">${nb}</div>`:'';
    h+= A.size? [...A].map(([n,l])=>`<div class="row"><span class="num">${svg('disc')}</span><button class="t" data-malb="${esc(n)}"><b>${esc(n)}</b><small>${l.length}곡 · ${Math.round(l.reduce((s,x)=>s+(x.dur||0),0)/60)}분</small></button><button class="icon" data-mplay="${esc(n)}" aria-label="${esc(n)} 듣기">${svg('play')}</button><span></span></div>`).join('')
-    : '<p class="empty">휴대폰에 있는 음악 파일(MP3 등)을 앨범으로 묶어 넣으면 여기서 들을 수 있습니다.<br>폴더 하나를 앨범 하나로 넣으세요.<br>넣은 곡은 이 휴대폰 안에만 저장됩니다.</p>';
+    : ecard('note','내 곡이 아직 없습니다','휴대폰에 있는 음악 파일(MP3 등)을 앨범으로 묶어 넣으면 여기서 들을 수 있습니다. 폴더 하나를 앨범 하나로 넣으세요. 넣은 곡은 이 휴대폰 안에만 저장됩니다.',nb);
   } else {
    const l=A.get(mineAlb), total=l.reduce((s,x)=>s+(x.dur||0),0);
    h=`<div class="bar"><button class="ghost" data-mback>${svg('left')}내 곡</button><b class="serif" style="font-size:20px">${esc(mineAlb)}</b></div>`;
@@ -168,13 +169,15 @@ function render(){ pickBar();
     : '<p class="empty">앨범이나 내 곡에서 ＋ 를 눌러 곡을 넣으세요.</p>';
    v.innerHTML=h;
   } else {
-   let h=`<form class="bar" id="newl"><input type="text" id="lname" placeholder="새 재생 목록 이름" maxlength="40"><button class="pill">만들기</button></form>`;
+   const fm=`<form class="bar" id="newl"><input type="text" id="lname" placeholder="새 재생 목록 이름" maxlength="40"><button class="pill">만들기</button></form>`;
+   let h= lists.length?fm:'';
    h+= lists.length? lists.map((L,i)=>`<div class="row"><span class="num">${svg('list')}</span><button class="t" data-openlist="${i}"><b>${esc(L.name)}</b><small>${L.ids.length}곡</small></button><button class="icon" data-playlist="${i}" aria-label="듣기">${svg('play')}</button><span></span></div>`).join('')
-    : '<p class="empty">좋아하는 곡을 모아 나만의 재생 목록을 만들어 보세요.</p>';
+    : ecard('list','재생 목록이 아직 없습니다','좋아하는 곡을 모아 나만의 목록을 만들어 보세요. 이름을 쓰고 「만들기」를 누른 뒤, 앨범에서 곡 옆의 ＋를 누르면 들어갑니다.',fm);
    v.innerHTML=h;
   }
  }
 }
+function ecard(ic,t,p,act){return `<div class="ecard"><span class="eic">${svg(ic)}</span><h3>${t}</h3><p>${p}</p>${act||''}</div>`}
 function numCell(id,n){const c=queue[qi];return pick?`<button class="num chk${pick.has(id)?' on':''}" data-pick="${esc(id)}" aria-label="고르기" aria-pressed="${pick.has(id)}">${svg(pick.has(id)?'check':'box')}</button>`:`<span class="num">${c&&c.id===id?EQ:n}</span>`}
 function pickBar(){const b=$('#pickbar');document.body.classList.toggle('picking',!!pick);$('#bpick').classList.toggle('on',!!pick);if(!pick){b.hidden=true;fitPad();return}b.hidden=false;
  fitPad();$('#pickn').textContent=pick.size?`${pick.size}곡 골랐습니다`:'앨범·내 곡에서 곡을 고르세요'}
@@ -284,7 +287,7 @@ function fitScore(two,S){const box=$('#scoreBox');if(!box||!two.length)return;
 addEventListener('resize',()=>{const b=$('#scoreBox');if(b)b.dataset.key=''});
 function scoreLoop(){if(lyrOpen&&lmode==='score'&&!au.paused)scoreTick();requestAnimationFrame(scoreLoop)}requestAnimationFrame(scoreLoop);
 au.addEventListener('timeupdate',scoreTick);
-function lyrHtml(t){if(!t)return '<p class="empty">곡을 고르세요.</p>';
+function lyrHtml(t){if(!t)return ecard('lyrics','아직 고른 곡이 없습니다','곡을 틀면 여기에 지금 부르는 가사와 악보가 나옵니다.',`<button class="pill" data-golib>${svg('disc')}앨범에서 곡 고르기</button>`);
  let h=`<p class="lnum">${esc(t.album?(t.part||''):'내 곡')}</p><h2>${esc(label(t))}</h2>`;
  if(!t.album)return h+'<p class="empty">내 곡에는 가사가 없습니다.</p>';
  if(t.verse)h+=`<blockquote>${esc(t.verse)}</blockquote>`;
@@ -304,7 +307,10 @@ function showLyr(){const t=queue[qi];const sc=hasScore(t);if(!sc&&lmode==='score
  if(lmode==='score'){$('#lyrIn').innerHTML=`<p class="sctitle">${esc(label(t))} · <span id="scpg"></span></p><div id="scoreBox"><p class="empty">악보 불러오는 중…</p></div>`;scoreTick()}
  else{$('#lyrIn').innerHTML=lyrHtml(t);lyrTick()}
  $('#lyr').scrollTop=0}
+const PAGE={album:['앨범','disc'],mine:['내 곡','note'],lists:['재생 목록','list'],radio:['라디오','radio'],bible:['성경','book'],lyr:['가사·악보','lyrics']};
 function navSel(){document.querySelectorAll('.bnav button').forEach(b=>b.setAttribute('aria-selected',lyrOpen?b.id==='navLyr':b.dataset.tab===tab));
+ // 화면마다 이름·색을 바꿔서 지금 어디에 있는지 바로 보이게
+ const pg=lyrOpen?'lyr':tab;if(document.body.dataset.tab!==pg){document.body.dataset.tab=pg;const P=PAGE[pg]||PAGE.album;$('#pgTitle').innerHTML=svg(P[1])+'<b>'+P[0]+'</b>';$('#bpick').hidden=!(pg==='album'||pg==='mine')}
  // 라디오·성경 화면에서는 아래 플레이어를 숨기고 메뉴만 (보라색이 겹쳐 헷갈리지 않게)
  const hide=!lyrOpen&&(tab==='radio'||tab==='bible');if(document.body.classList.contains('noplayer')!==hide){document.body.classList.toggle('noplayer',hide);try{fitPad()}catch(e){}}}
 function openLyr(){lyrOpen=true;fitPad();showLyr();$('#lyr').classList.add('open');navSel()}
@@ -497,7 +503,7 @@ $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-set]');
  b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 
 // 재생 막대 높이에 맞춰 아래 여백 맞추기 (글자 크기를 바꿔도 가리지 않게)
-function fitPad(){const h=$('#dock').offsetHeight,pb=pick?$('#pickbar').offsetHeight:0;
+function fitPad(){const h=$('#dock').offsetHeight,pb=pick?$('#pickbar').offsetHeight:0;document.documentElement.style.setProperty('--hh',$('header.top').offsetHeight+'px');
  document.body.style.paddingBottom=(h+pb+24)+'px';$('#pickbar').style.bottom=h+'px';$('#toast').style.bottom=(h+pb+16)+'px';$('#lyr').style.bottom=Math.max(0,h-14)+'px'}
 addEventListener('resize',fitPad);
 
@@ -688,6 +694,7 @@ function bPicker(kind){const X=BIDX;if(!X)return;
  else{const n=X.books[bpos.i][2];sheet(`<h3>${esc(X.books[bpos.i][0])} — 장 고르기</h3><div class="bgrid">${Array.from({length:n},(_,k)=>`<button class="bpk${k+1===bpos.c?' on':''}" data-bch="${k+1}">${k+1}</button>`).join('')}</div><button class="ghost" data-close>닫기</button>`)}}
 function bGo(i,c){bpos={i,c};LS.set('bpos',bpos);$('#sheet').classList.remove('open');if(tab!=='bible'){tab='bible';closeNP();closeLyr();render()}else bibleLoad();scrollTo(0,0)}
 document.addEventListener('click',e=>{let b;
+ if(e.target.closest('[data-golib]')){closeLyr();tab='album';render();scrollTo(0,0);return}
  if(e.target.closest('[data-bset]')){$('#bset').click();return}
  if(b=e.target.closest('[data-bref]')){bShow(b.dataset.bref,b.dataset.btitle);return}
  if(b=e.target.closest('[data-bread]')){const [i,c]=b.dataset.bread.split('|').map(Number);bGo(i,c);return}
@@ -706,8 +713,7 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  const vt=(CAT.albums[0]?.tracks||[]).find(t=>String(t.n)===String(D.verse));
  const note=dn?'':(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
  return `<section class="radio">
- <div class="onair"><i></i>지금 방송 중</div>
- <h1>주찬양 라디오</h1>
+ <div class="onair"><i></i>주찬양 라디오 · 지금 방송 중</div>
  <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>
  ${rclHtml()}
  <div class="rprog"><b>${esc(R.P.name)}</b><small>${hm(R.P.from)}–${hm(R.P.to)} · ${esc(R.P.desc)}</small></div>
@@ -761,7 +767,7 @@ $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-shplay]
 
 // ---------- 시작 ----------
 (async()=>{
- $('#bplay').innerHTML=svg('play');$('#npPlay').innerHTML=svg('play'); applySet(); showRep(); $('#bver').textContent=window.BUILD?'판 '+window.BUILD:''; await DB.open(); await OFF.load(); mine=(await DB.all()).sort((a,b)=>a.added-b.added);
+ $('#bplay').innerHTML=svg('play');$('#npPlay').innerHTML=svg('play'); applySet(); showRep(); $('#bver').textContent='주찬양 플레이어'+(window.BUILD?' · 판 '+window.BUILD:''); await DB.open(); await OFF.load(); mine=(await DB.all()).sort((a,b)=>a.added-b.added);
  // 곡 목록: 저장소(인터넷)에서 새로 받고, 안 되면 마지막에 받은 것, 그것도 없으면 앱 안의 것
  const REMOTE='https://raw.githubusercontent.com/j63cho/Chanyang-media/main/catalog.json';
  let local=null; try{local=await (await fetch(window.CATALOG||'catalog.json')).json()}catch(e){}
