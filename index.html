@@ -62,6 +62,9 @@ main,.player .pt,.pickbar>.pin,.lyrtop,.lyrin,.sheet>div{zoom:var(--z)}
 .hero img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;box-shadow:0 12px 30px rgba(50,20,100,.25)}
 .hero h1{word-break:keep-all;font:700 clamp(24px,5vw,38px)/1.2 "Noto Serif KR",serif;margin:0 0 6px;text-wrap:balance}
 .hero p{margin:0 0 10px;color:var(--soft);font-size:15px;word-break:keep-all}
+/* 표지에 제목이 있으므로 제목 글은 숨김(읽어 주기용으로만 남김), 단추는 한 줄로 */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hero{padding:12px 0 8px}.hero .bar{flex-wrap:wrap;gap:8px}.hero .bar .pill,.hero .bar .ghost{min-height:42px}
 .pill{background:var(--gold);color:var(--on);font-weight:700;padding:0 20px;border-radius:999px;box-shadow:0 4px 14px color-mix(in srgb,var(--gold) 35%,transparent)}
 .ghost{border:1px solid var(--line);padding:0 16px;border-radius:999px;background:var(--card)}
 .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}
