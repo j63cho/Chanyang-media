@@ -148,10 +148,10 @@ function render(){ pickBar();
   const A=mineAlbums(); if(mineAlb&&!A.has(mineAlb))mineAlb=null;
   let h='';
   if(!mineAlb){
-   const nb=`<button class="pill" id="newalb">${svg('plus')}새 앨범 만들고 곡 넣기</button>`;
+   const nb=`<button class="pill" id="addf">${svg('plus')}곡 넣기</button><button class="ghost" id="newalb">${svg('disc')}새 앨범 만들기</button>`;
    h= A.size?`<div class="bar">${nb}</div>`:'';
    h+= A.size? [...A].map(([n,l])=>`<div class="row"><span class="num">${svg('disc')}</span><button class="t" data-malb="${esc(n)}"><b>${esc(n)}</b><small>${l.length}곡 · ${Math.round(l.reduce((s,x)=>s+(x.dur||0),0)/60)}분</small></button><button class="icon" data-mplay="${esc(n)}" aria-label="${esc(n)} 듣기">${svg('play')}</button><span></span></div>`).join('')
-    : ecard('note','내 곡이 아직 없습니다','휴대폰에 있는 음악 파일(MP3 등)을 앨범으로 묶어 넣으면 여기서 들을 수 있습니다. 폴더 하나를 앨범 하나로 넣으세요. 넣은 곡은 이 휴대폰 안에만 저장됩니다.',nb);
+    : ecard('note','내 곡이 아직 없습니다','휴대폰에 있는 음악 파일(MP3 등)을 넣으면 여기서 들을 수 있습니다. 「곡 넣기」로 바로 넣거나, 「새 앨범 만들기」로 이름을 붙여 묶을 수 있습니다. 넣은 곡은 이 휴대폰 안에만 저장됩니다.',`<div class="bar">${nb}</div>`);
   } else {
    const l=A.get(mineAlb), total=l.reduce((s,x)=>s+(x.dur||0),0);
    h=`<div class="bar"><button class="ghost" data-mback>${svg('left')}내 곡</button><b class="serif" style="font-size:20px">${esc(mineAlb)}</b></div>`;
@@ -360,14 +360,14 @@ document.addEventListener('click',async e=>{
  if(b=g('data-dellist')){const i=+b.dataset.dellist;sheet(`<h3>「${esc(lists[i].name)}」 목록을 지울까요?</h3><p>곡 파일은 지워지지 않습니다.</p><div class="bar"><button class="pill" data-yesdel="${i}">지우기</button><button class="ghost" data-close>그만두기</button></div>`);return}
  if(b=g('data-yesdel')){lists.splice(+b.dataset.yesdel,1);LS.set('lists',lists);openList=null;$('#sheet').classList.remove('open');render();return}
  if(b=g('data-yesdelmine')){const id=b.dataset.yesdelmine;await DB.del(id);mine=mine.filter(x=>x.id!==id);$('#sheet').classList.remove('open');render();toast('지웠습니다');return}
- if(e.target.id==='addf'){addTo=null;$('#pick').click();return}
+ if(e.target.closest('#addf')){addTo=null;$('#pick').click();return}
  // ----- 내 앨범 -----
  if(b=g('data-malb')){mineAlb=b.dataset.malb;LS.set('mineAlb',mineAlb);render();scrollTo(0,0);return}
  if(b=g('data-mback')){mineAlb=null;LS.set('mineAlb',null);render();return}
  if(b=g('data-mplay')){const l=mineAlbums().get(b.dataset.mplay)||[];if(l.length){shuf=false;LS.set('shuf',false);$('#bshuf').classList.remove('on');setQueue(l,0,'mine:'+b.dataset.mplay)}return}
  if(b=g('data-mmix')){const l=mineAlbums().get(b.dataset.mmix)||[];if(l.length){setQueue(l,0,'mine:'+b.dataset.mmix,true);toast('섞어서 듣기')}return}
- if(e.target.id==='newalb'){sheet(`<h3>새 앨범</h3><p>앨범 이름을 쓰고 「곡 고르기」를 누르세요.<br>그 폴더의 곡을 모두 골라 주세요. (첫 곡을 길게 누르면 여러 곡을 고를 수 있습니다)</p><p class="hint">☁ <b>구글 드라이브·Dropbox</b>에 있는 곡은 파일 창 <b>왼쪽 위 ☰</b>를 누르고 「Drive」나 「Dropbox」를 고르세요. 고른 곡은 이 휴대폰 안에 저장되어 인터넷 없이도 들립니다.</p><div class="bar"><input type="text" id="albName" placeholder="앨범 이름 (예: 꼭 알아야 할 교향곡)" maxlength="60"><button class="pill" id="albgo">곡 고르기</button></div><button class="ghost" data-close>그만두기</button>`);return}
- if(e.target.id==='albgo'){const n=($('#albName').value||'').trim();if(!n){toast('앨범 이름을 써 주세요');return}if(n===NOALB){toast('다른 이름을 써 주세요');return}
+ if(e.target.closest('#newalb')){sheet(`<h3>새 앨범</h3><p>앨범 이름을 쓰고 「곡 고르기」를 누르세요. (이름은 비워 두어도 됩니다)<br>그 폴더의 곡을 모두 골라 주세요. (첫 곡을 길게 누르면 여러 곡을 고를 수 있습니다)</p><p class="hint">☁ <b>구글 드라이브·Dropbox</b>에 있는 곡은 파일 창 <b>왼쪽 위 ☰</b>를 누르고 「Drive」나 「Dropbox」를 고르세요. 고른 곡은 이 휴대폰 안에 저장되어 인터넷 없이도 들립니다.</p><div class="bar"><input type="text" id="albName" placeholder="앨범 이름 (예: 꼭 알아야 할 교향곡)" maxlength="60"><button class="pill" id="albgo">곡 고르기</button></div><button class="ghost" data-close>그만두기</button>`);return}
+ if(e.target.id==='albgo'){const n=($('#albName').value||'').trim();if(!n){addTo=null;$('#sheet').classList.remove('open');$('#pick').click();return}if(n===NOALB){toast('다른 이름을 써 주세요');return}
   addTo=n;$('#sheet').classList.remove('open');$('#pick').click();return}
  if(b=g('data-maddto')){addTo=mineAlb===NOALB?null:mineAlb;$('#pick').click();return}
  if(b=g('data-mdelalb')){const l=mineAlbums().get(mineAlb)||[];sheet(`<h3>「${esc(mineAlb)}」 앨범을 지울까요?</h3><p>앨범 안의 ${l.length}곡이 이 앱에서 지워집니다. 휴대폰의 원래 파일은 그대로입니다.</p><div class="bar"><button class="pill" data-myesdelalb>지우기</button><button class="ghost" data-close>그만두기</button></div>`);return}
