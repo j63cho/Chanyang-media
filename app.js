@@ -19,6 +19,7 @@ const IC={play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>'
  shuffle:'<path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
  repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
  repeat1:'<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/><path d="M11 10.5h1.2v4.5"/>',
+ sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.6v.01"/>',
  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3.1 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 20.9 10H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
@@ -137,7 +138,7 @@ function render(){ pickBar();
   h+=`<section class="hero"><img src="${esc(a.cover)}" alt="${esc(a.title)} 표지"><div><h1 class="sr">${esc(a.title)}</h1><p>${esc(a.sub||'')}</p><p>${esc(a.artist||'')} · ${a.tracks.length}곡 · ${Math.round(total/60)}분</p><div class="bar" style="margin:0"><button class="pill" data-playalb="${a.id}">${svg('play')}차례로</button><button class="ghost" data-shufalb="${a.id}">${svg('shuffle')}섞어서</button>${canDL()&&a.zip?`<a class="ghost dlall" href="${esc(a.zip)}" download>${svg('download')}앨범 전체 내려받기</a>`:''}</div>${canDL()&&a.zip?`<p class="dlnote">${esc(a.zipNote||'')}</p>`:''}</div></section>${verBar(a)}${offBar(a)}`;
   let part=null;
   for(const t of a.tracks){
-   if(t.part&&t.part!==part){part=t.part;h+=`<h2 class="part"><span>${esc(part)}</span><button class="partplay" data-playpart="${esc(part)}" data-from="${a.id}" aria-label="${esc(part)} 듣기">${svg('play')}${esc(((part.match(/^\s*(\d+\s*부)/)||[])[1]||'이 부').replace(/\s/g,''))} 듣기</button></h2>`}
+   if(t.part&&t.part!==part){part=t.part;h+=`<h2 class="part"><span>${esc(part)}</span><button class="partplay" data-playpart="${esc(part)}" data-from="${a.id}" aria-label="${esc(part)} 듣기">${svg('play')}${esc(((part.match(/^\s*(\d+\s*부)/)||[])[1]||part.replace(/^\s*\d+\.\s*/,'').split('—')[0].trim()||'이 부').replace(/(\d)\s+부/,'$1부'))} 듣기</button></h2>`}
    const now=cur&&cur.id===t.id;
    h+=`<div class="row${now?' now':''}">${numCell(t.id,t.n)}<button class="t" data-play="${t.id}" data-from="${a.id}"><b>${t.kind?esc(t.kind)+' ':''}「${esc(t.title)}」</b><small>${fmt(t.dur)}</small></button><button class="icon" data-desc="${t.id}" aria-label="곡 설명">${svg('info')}</button><button class="icon" data-add="${t.id}" aria-label="재생 목록에 넣기">${svg('plus')}</button>${canDL()&&t.src?`<a class="icon" href="${esc(rawSrc({...t,album:a}))}" download="${esc(dlName(t,a))}" aria-label="이 곡 내려받기" title="이 곡 내려받기">${svg('download')}</a>`:''}`;
    if(openDesc===t.id) h+=descHtml(t);
@@ -191,7 +192,7 @@ function load(play){
  const t=queue[qi]; if(!t)return;
  setSrc(t); partsSetup(t); LS.set('last',{id:t.id,src:queue.src,ids:queue.map(x=>x.id)});
  $('#ptitle').textContent=label(t); $('#psub').textContent=sub(t);
- $('#pimg').src=t.album?t.album.cover:(CAT.albums[0]?.cover||'');
+ $('#pimg').src=t.album?t.album.cover:(t.cover||CAT.albums[0]?.cover||'');
  meta(t); if(play) au.play().catch(()=>{}); render(); if(lyrOpen)showLyr(); syncNP();
 }
 function next(auto){ if(!queue.length)return; if(auto&&repeat==='one'){au.currentTime=0;au.play();return}
@@ -201,7 +202,7 @@ function prev(){ if(au.currentTime>4){au.currentTime=0;return} if(qi>0){qi--;loa
 const CAP=window.Capacitor, NMS=(CAP&&CAP.isNativePlatform&&CAP.isNativePlatform()&&CAP.registerPlugin)?CAP.registerPlugin('MediaSession'):null;
 function meta(t){
  const m={title:label(t),artist:t.rp?'주찬양 라디오 · '+t.rp:t.album?(t.part||t.album.artist):'내 곡',album:t.album?t.album.title:(t.alb||'내 곡'),
-  artwork:[{src:new URL(t.album?t.album.cover:(CAT.albums[0]?.cover||''),location.href).href,sizes:'600x600',type:'image/jpeg'}]};
+  artwork:[{src:new URL(t.album?t.album.cover:(t.cover||CAT.albums[0]?.cover||''),location.href).href,sizes:'600x600',type:'image/jpeg'}]};
  if(NMS){NMS.setMetadata(m).catch(()=>{});return}
  const ms=navigator.mediaSession; if(!ms)return;
  try{ms.metadata=new MediaMetadata(m)}catch(e){}
@@ -561,7 +562,7 @@ function seasonOf(d){const y=d.getFullYear(),day=new Date(y,d.getMonth(),d.getDa
  if(day>=E&&day<new Date(E.getTime()+49*DAY))return 'easter';
  if(d.getMonth()===10&&d.getDay()===4&&d.getDate()>=22&&d.getDate()<=28)return 'thanksgiving';
  return ''}
-const SEASON_NAME={advent:'대림절',christmas:'성탄절',lent:'사순절',easter:'부활절기',thanksgiving:'추수감사절'};
+const SEASON_NAME={advent:'강림절',christmas:'성탄절',lent:'사순절',easter:'부활절기',thanksgiving:'추수감사절'};
 function radioDay(d){const x=new Date(d);if(x.getHours()<5)x.setDate(x.getDate()-1);return x}
 function dayKey(d){const x=radioDay(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
 function dayPlan(d=new Date()){const R=RD(),k=dayKey(d),x=radioDay(d),D=(R.days||{})[k],th=id=>R.themes.find(t=>t.id===id);
@@ -577,17 +578,33 @@ const PROGS=[
  {id:'rest',name:'낮의 쉼',desc:'잔잔한 피아노 반주로 듣는 한낮',from:9,to:17,ver:'A',order:'mix'},
  {id:'eve',name:'위로와 소망',desc:'하루를 마치며 듣는 관현악 오라토리오',from:17,to:22,ver:'C',order:'album'},
  {id:'night',name:'밤의 평안',desc:'조용히 잠드는 시간 — 잠들기 타이머와 함께',from:22,to:29,ver:'A',order:'mix'}];
+// 낭독 방송(talks.json): 정해진 시각에 그날 회차를 먼저 틀고, 남은 시간은 찬양
+const TPROGS=[
+ {id:'t-medit',talk:'medit',name:'아침 묵상',desc:'하루 한 편, 책을 읽어 드립니다',from:7,to:8,ver:'B',order:'album'},
+ {id:'t-story',talk:'story',name:'밤의 이야기',desc:'하루 한 장, 이야기를 들려 드립니다',from:21,to:22,ver:'A',order:'mix'}];
+let TALKS=LS.get('talks',null);
+const MEDIA='https://raw.githubusercontent.com/j63cho/Chanyang-media/main/';
+async function loadTalks(isWeb){try{const u=isWeb?'talks.json':MEDIA+'talks.json?t='+Date.now();
+ const ctl=new AbortController();setTimeout(()=>ctl.abort(),6000);const r=await fetch(u,{signal:ctl.signal,cache:'no-store'});if(r.ok){const j=await r.json();if(j&&j.medit){TALKS=j;LS.set('talks',j)}}}catch(e){}}
+const talkOf=id=>TALKS&&TALKS[id]&&TALKS[id].eps?TALKS[id]:null;
+function talkN(T,d=new Date()){const x=radioDay(d),[y,m,dd]=T.start.split('-').map(Number);return Math.round((new Date(x.getFullYear(),x.getMonth(),x.getDate())-new Date(y,m-1,dd))/864e5)}
+const talkReady=(T,n)=>!!(T&&n>=0&&n<T.eps.length&&T.eps[n].src);
+function talkIntro(T){return T.intro&&!(T.noIntro||[]).includes(-1)?{id:`talk-${T.id}-intro`,title:'주찬양 라디오 · '+T.name,src:T.intro,rp:T.name,talk:T.id,cover:T.cover}:null}
+function talkList2(T,n){const e=talkTrack(T,n),i=talkIntro(T);return i&&!(T.noIntro||[]).includes(n)?[i,e]:[e]}
+function talkTrack(T,n){const e=T.eps[n];return {id:`talk-${T.id}-${n}`,title:e.t,src:/^https?:/.test(e.src)?e.src:(window.BUILD==='웹'?'':MEDIA)+e.src,rp:T.name,talk:T.id,ep:n,cover:T.cover,dur:e.dur}}
 function progAt(d){const h=d.getHours(),hh=h<5?h+24:h,day=(h<5?(d.getDay()+6)%7:d.getDay());
+ const tp=TPROGS.find(P=>hh>=P.from&&hh<P.to);if(tp){const T=talkOf(tp.talk);if(T&&talkReady(T,talkN(T,d)))return tp}
  return PROGS.find(P=>P.days&&P.days.includes(day)&&hh>=P.from&&hh<P.to)||PROGS.find(P=>!P.days&&hh>=P.from&&hh<P.to)||PROGS[2]}
 function progStart(P,d){const s=new Date(d);if(d.getHours()<5)s.setDate(s.getDate()-1);s.setHours(P.from%24,0,0,0);if(P.from>=24)s.setDate(s.getDate()+1);return s.getTime()}
 function seeded(seed){let x=seed|0||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return ((x>>>0)%100000)/100000}}
-function progPool(P,d){let l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rv:P.ver,rp:P.name});
+function progPool(P,d){let l=[];for(const a of CAT.albums)if(!a.noradio)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rv:P.ver,rp:P.name});
  if(P.order==='mix'){const s=new Date(progStart(P,d));const r=seeded(s.getFullYear()*10000+(s.getMonth()+1)*100+s.getDate()+P.from);for(let i=l.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[l[i],l[j]]=[l[j],l[i]]}}
  // 오늘의 주제 곡을 앞에 (첫 앨범 기준 곡 번호)
  const D=dayPlan(d),first=CAT.albums[0]&&CAT.albums[0].id,top=[];
  for(const n of D.order){const i=l.findIndex(t=>t.album.id===first&&String(t.n)===String(n));if(i>=0)top.push(l.splice(i,1)[0])}
  // 이번 주일 렉셔너리 본문과 이어지는 곡을 맨 앞에
  try{const rs=rclSongs(rclNext(d));for(const r of rs.reverse()){const i=l.findIndex(t=>t.album.id===r.album.id&&String(t.n)===String(r.n));if(i>=0)top.unshift(l.splice(i,1)[0])}}catch(e){}
+ if(P.talk){const T=talkOf(P.talk),n=T?talkN(T,d):-1;if(talkReady(T,n))top.unshift(...talkList2(T,n))}
  return top.concat(l)}
 const durOf=t=>parseFloat(t.dur)||120;
 function radioNow(d=new Date()){const P=progAt(d),pool=progPool(P,d);if(!pool.length)return null;
@@ -598,7 +615,7 @@ function radioTune(play){const R=radioNow();if(!R){toast('라디오에 틀 곡�
  const l=[...R.pool.slice(R.i),...R.pool.slice(0,R.i)];l.src='radio';l.prog=R.P.id;queue=l;qi=0;
  const off=R.off;au.addEventListener('loadedmetadata',()=>{if(off>2&&off<(au.duration||0)-3)au.currentTime=off},{once:true});
  load(play!==false);toast(`주찬양 라디오 — 「${R.P.name}」`)}
-function radioMix(){const l=[];for(const a of CAT.albums)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rp:'끝없이 섞어 듣기'});
+function radioMix(){const l=[];for(const a of CAT.albums)if(!a.noradio)for(const t of a.tracks)if(t.src||a.media)l.push({...t,album:a,rp:'끝없이 섞어 듣기'});
  const s=shuffled(l,-1);s.src='radio-mix';queue=s;qi=0;load(true)}
 // ---------- 렉셔너리(RCL) A·B·C — 이번 주일 본문 ----------
 let RCL=LS.get('rcl',null);
@@ -730,24 +747,47 @@ document.addEventListener('click',e=>{let b;
  if(b=e.target.closest('[data-rplan]')){const [k,i]=b.dataset.rplan.split('|').map(Number);showPlan(k,i);return}
  if(b=e.target.closest('[data-rdone]')){const key=b.dataset.rdone;if(rdone[key])delete rdone[key];else{rdone[key]=1;toast('오늘 말씀을 다 읽었습니다')}LS.set('rdone',rdone);if(tab==='radio')render();return}});
 const hm=h=>`${String(h%24).padStart(2,'0')}:00`;
+function talkCard(tp){const T=talkOf(tp.talk);if(!T)return '';
+ const n=talkN(T),N=T.eps.length,ic=tp.talk==='medit'?'sun':'moon';
+ if(n<0){const [y,m,d]=T.start.split('-').map(Number);
+  return `<div class="tcard soon"><div class="tico">${svg(ic)}</div><div class="tbody"><small>매일 ${hm(tp.from)} · ${esc(tp.name)}</small><b>${esc(T.book)}</b><span>${y}년 ${m}월 ${d}일 첫 방송 · 모두 ${N}회</span></div></div>`}
+ if(n>=N)return `<div class="tcard"><div class="tico">${svg(ic)}</div><div class="tbody"><small>매일 ${hm(tp.from)} · ${esc(tp.name)}</small><b>${esc(T.book)}</b><span>방송을 모두 마쳤습니다 · 다음 책을 준비 중입니다</span></div><div class="tbtn"><button class="ghost" data-talk="list|${tp.talk}">${svg('list')}다시 듣기</button></div></div>`;
+ const e=T.eps[n],ok=talkReady(T,n),on=queue.src==='talk'&&queue.some(x=>x.id===`talk-${tp.talk}-${n}`)&&!au.paused;
+ return `<div class="tcard"><div class="tico">${svg(ic)}</div><div class="tbody"><small>매일 ${hm(tp.from)} · ${esc(tp.name)} · ${n+1}/${N}회</small><b>${esc(e.t)}</b><span>${esc(T.book)}</span></div>
+ <div class="tbtn">${ok?`<button class="pill" data-talk="play|${tp.talk}|${n}">${svg(on?'pause':'play')}${on?'멈춤':'오늘 회 듣기'}</button>`:''}${n>0?`<button class="ghost" data-talk="list|${tp.talk}">${svg('list')}지난 회</button>`:''}</div></div>`}
 function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오에 틀 곡이 아직 없습니다.</p>';
  const on=queue.src==='radio'&&!au.paused,cur=on?queue[qi]:R.pool[R.i],nx=on?queue[qi+1]:R.pool[(R.i+1)%R.pool.length];
- const v=rawVer(cur),day=new Date().getDay();
- const lst=PROGS.filter(P=>!P.days||P.days.includes(day)).map(P=>`<li class="${P.id===R.P.id?'cur':''}"><b>${hm(P.from)}–${hm(P.to)}</b><span>${esc(P.name)}<small>${esc(P.desc)}</small></span></li>`).join('');
- const D=dayPlan(),dn=D.notes[String(cur.n)];
+ const v=cur.album?rawVer(cur):null,day=new Date().getDay();
+ const rows=[...PROGS.filter(P=>!P.days||P.days.includes(day)),...TPROGS.filter(P=>talkOf(P.talk))].sort((a,b)=>a.from-b.from||(a.talk?1:-1));
+ const lst=rows.map(P=>{const T=P.talk&&talkOf(P.talk),n=T?talkN(T):0,soon=T&&n<0,done=T&&n>=T.eps.length;
+  return `<li class="${P.id===R.P.id?'cur':''}${P.talk?' talk':''}"><b>${hm(P.from)}–${hm(P.to)}</b><span>${P.talk?`<i class="tag">낭독</i>`:''}${esc(P.name)}<small>${T?esc(soon?`${T.book} · ${+T.start.split('-')[1]}월 ${+T.start.split('-')[2]}일 시작`:done?'방송을 마쳤습니다':`${T.book} · ${n+1}회 「${T.eps[n].t}」`):esc(P.desc)}</small></span></li>`}).join('');
+ const D=dayPlan(),dn=cur.album?D.notes[String(cur.n)]:'';
  const vt=(CAT.albums[0]?.tracks||[]).find(t=>String(t.n)===String(D.verse));
- const note=dn?'':(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
+ const note=dn||cur.talk?'':(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
+ const now=new Date(),clock=`${now.getHours()<12?'오전':'오후'} ${now.getHours()%12||12}:${String(now.getMinutes()).padStart(2,'0')}`;
+ const cv=cur.album?cur.album.cover:(cur.cover||CAT.albums[0]?.cover||'');
  return `<section class="radio">
- <div class="onair"><i></i>주찬양 라디오 · 지금 방송 중</div>
+ <div class="rhead"><div class="onair"><i></i>지금 방송 중</div><span class="rclock">${clock}</span></div>
+ <div class="rprog"><small>${hm(R.P.from)}–${hm(R.P.to)}</small><b>${esc(R.P.name)}</b><small>${esc(R.P.desc)}</small></div>
+ <div class="nowcard"><img src="${esc(cv)}" alt=""><div><small>${cur.talk?'지금 읽는 글':on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${cur.talk?esc(talkOf(cur.talk)?.book||''):esc(cur.part||'')+(v?' · '+esc(v.name):'')}</small></div></div>
+ ${dn?`<p class="rnote"><small>진행자의 말</small>${esc(dn)}</p>`:R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>이 곡의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
+ ${nx?`<p class="nextup">다음 · ${esc(label(nx))}</p>`:''}
+ <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}섞어 듣기</button><button class="ghost${sleepAt||sleepEnd?' on':''}" data-radio="sleep">${svg('moon')}${sleepAt?Math.max(1,Math.ceil((sleepAt-Date.now())/60000))+'분 뒤 멈춤':sleepEnd?'곡 끝나면 멈춤':'타이머'}</button></div>
+ ${TPROGS.some(P=>talkOf(P.talk))?`<h2 class="part"><span>오늘의 낭독</span></h2><div class="tcards">${TPROGS.map(talkCard).join('')}</div>`:''}
+ <h2 class="part"><span>오늘의 말씀</span></h2>
  <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>
  ${readHtml()}
- <div class="rprog"><b>${esc(R.P.name)}</b><small>${hm(R.P.from)}–${hm(R.P.to)} · ${esc(R.P.desc)}</small></div>
- <div class="nowcard"><img src="${esc(cur.album.cover)}" alt=""><div><small>${on?'지금 나오는 곡':'지금 방송 중인 곡'}</small><b>${esc(label(cur))}</b><small>${esc(cur.part||'')}${v?' · '+esc(v.name):''}</small></div></div>
- ${dn?`<p class="rnote"><small>진행자의 말</small>${esc(dn)}</p>`:R.P.id==='morn'&&cur.verse?`<blockquote class="rverse"><small>이 곡의 말씀</small>${esc(cur.verse)}</blockquote>`:note?`<p class="rnote"><small>이 곡에서 들을 것</small>${esc(note)}</p>`:''}
- ${nx?`<p class="nextup">다음 곡 · ${esc(label(nx))}</p>`:''}
- <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}끝없이 섞어 듣기</button><button class="ghost${sleepAt||sleepEnd?' on':''}" data-radio="sleep">${svg('moon')}${sleepAt?Math.max(1,Math.ceil((sleepAt-Date.now())/60000))+'분 뒤 멈춤':sleepEnd?'곡 끝나면 멈춤':'잠들기 타이머'}</button></div>
- <p class="rhelp">시간표 라디오는 같은 시간대에 있는 사람이 모두 같은 곡을 함께 듣습니다. 곡이 끝나면 다음 곡이, 시간이 바뀌면 다음 프로그램이 이어집니다.</p>
- <h2 class="part"><span>오늘 방송표</span></h2><ul class="sched">${lst}</ul></section>`}
+ <h2 class="part"><span>오늘 방송표</span></h2><ul class="sched">${lst}</ul>
+ <p class="rhelp">같은 시간에는 모두 같은 방송을 함께 듣습니다. 낭독은 정해진 시각에 먼저 나오고, 놓친 회는 「지난 회」에서 들을 수 있습니다.</p></section>`}
+function talkList(id){const T=talkOf(id);if(!T)return;const n=Math.min(talkN(T),T.eps.length-1);
+ let h=`<div class="tlist"><h3>${esc(T.book)}</h3><p class="rclsrc">${esc(T.name)} · 다시 듣기</p><ol>`;
+ for(let i=n;i>=0;i--)if(talkReady(T,i))h+=`<li><button class="bref" data-talk="play|${id}|${i}"><small>${i+1}회</small> ${esc(T.eps[i].t)}</button></li>`;
+ sheet(h+`</ol><button class="pill" data-close>닫기</button></div>`)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-talk]');if(!b)return;const [k,id,n]=b.dataset.talk.split('|');
+ if(k==='list'){talkList(id);return}
+ const T=talkOf(id);if(!T)return;const tid=`talk-${id}-${n}`;
+ if(queue.src==='talk'&&queue.some(x=>x.id===tid)){if(au.paused)au.play();else au.pause();render();return}
+ $('#sheet').classList.remove('open');const l=talkList2(T,+n);l.src='talk';queue=l;qi=0;load(true);toast(`${T.name} — ${+n+1}회`)});
 $('#view').addEventListener('click',e=>{const r=e.target.closest('[data-rclplay]');if(r){const [aid,n]=r.dataset.rclplay.split('|');const a=album(aid);const l=a.tracks.map(t=>({...t,album:a}));const i=l.findIndex(t=>String(t.n)===n);if(i>=0)setQueue(l,i,'album:'+a.id);return}});
 $('#view').addEventListener('click',e=>{const b=e.target.closest('[data-radio]');if(!b)return;
  if(b.dataset.radio==='sleep'){$('#npSleep').click();return}
@@ -804,6 +844,7 @@ $('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-shplay]
  await loadRadio(isWeb&&!!window.CATALOG);
  await loadRcl(isWeb&&!!window.CATALOG);
  await loadPlan();
+ await loadTalks(isWeb&&!!window.CATALOG);
  if(!album(albumId))albumId=CAT.albums[0]?.id;
  const last=LS.get('last',null);
  if(last){const m=allTracks();const l=(last.ids||[]).map(id=>m[id]).filter(Boolean);const i=l.findIndex(t=>t.id===last.id);
