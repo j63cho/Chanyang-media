@@ -638,7 +638,7 @@ function rclKey(day){const d=rclDate(day.getFullYear(),day.getMonth(),day.getDat
  if(m===10&&dd===1&&!sun)return nm('allsaints');
  if(m===10&&d.getDay()===4&&dd>=22&&dd<=28)return nm('thanks');
  if(!sun)return null;
- const w=rclDays(d,A1)/7;if(w>=0&&w<4)return nm('adv'+(w+1),`대림절 ${ORD[w+1]} 주일`);
+ const w=rclDays(d,A1)/7;if(w>=0&&w<4)return nm('adv'+(w+1),`강림절 ${ORD[w+1]} 주일`);
  if((m===11&&dd>=26)||(m===0&&dd===1))return nm('chr1');
  if(m===0&&dd>=2&&dd<=5)return nm('chr2');
  const ep=rclDate(Y+1,0,6),b1=rclDate(Y+1,0,6+((7-ep.getDay())%7||7));
@@ -761,7 +761,7 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  const rows=[...PROGS.filter(P=>!P.days||P.days.includes(day)),...TPROGS.filter(P=>talkOf(P.talk))].sort((a,b)=>a.from-b.from||(a.talk?1:-1));
  const lst=rows.map(P=>{const T=P.talk&&talkOf(P.talk),n=T?talkN(T):0,soon=T&&n<0,done=T&&n>=T.eps.length;
   return `<li class="${P.id===R.P.id?'cur':''}${P.talk?' talk':''}"><b>${hm(P.from)}–${hm(P.to)}</b><span>${P.talk?`<i class="tag">낭독</i>`:''}${esc(P.name)}<small>${T?esc(soon?`${T.book} · ${+T.start.split('-')[1]}월 ${+T.start.split('-')[2]}일 시작`:done?'방송을 마쳤습니다':`${T.book} · ${n+1}회 「${T.eps[n].t}」`):esc(P.desc)}</small></span></li>`}).join('');
- const D=dayPlan(),dn=cur.album?D.notes[String(cur.n)]:'';
+ const D=dayPlan(),dn=cur.album&&cur.album.id===CAT.albums[0]?.id?D.notes[String(cur.n)]:'';
  const vt=(CAT.albums[0]?.tracks||[]).find(t=>String(t.n)===String(D.verse));
  const note=dn||cur.talk?'':(()=>{if(!(cur.listen&&cur.listen[0]))return '';const ss=String(cur.listen[0][1]).split(/(?<=다\.)\s*/);let o='';for(const x of ss){if((o+x).length>170)break;o+=x+' '}return o.trim()||ss[0]})();
  const now=new Date(),clock=`${now.getHours()<12?'오전':'오후'} ${now.getHours()%12||12}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -775,10 +775,20 @@ function radioHtml(){const R=radioNow();if(!R)return '<p class="empty">라디오
  <div class="bar"><button class="pill big" data-radio="live">${svg(on?'pause':'play')}${on?'라디오 멈춤':'라디오 듣기'}</button><button class="ghost" data-radio="mix">${svg('shuffle')}섞어 듣기</button><button class="ghost${sleepAt||sleepEnd?' on':''}" data-radio="sleep">${svg('moon')}${sleepAt?Math.max(1,Math.ceil((sleepAt-Date.now())/60000))+'분 뒤 멈춤':sleepEnd?'곡 끝나면 멈춤':'타이머'}</button></div>
  ${TPROGS.some(P=>talkOf(P.talk))?`<h2 class="part"><span>오늘의 낭독</span></h2><div class="tcards">${TPROGS.map(talkCard).join('')}</div>`:''}
  <h2 class="part"><span>오늘의 말씀</span></h2>
- <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>
+ <div class="today"><span class="chip">오늘의 주제 · ${esc(D.theme.name)}</span>${D.title?`<span class="chip soft">${esc(D.title)}</span>`:''}${D.greeting?`<p>${esc(D.greeting)}</p>`:''}${vt&&vt.verse?`<blockquote><small>오늘의 말씀</small>${esc(vt.verse)}</blockquote>`:''}</div>${pastDays().length?`<button class="ghost rpastbtn" data-rpast>${svg('left')}지난 방송 다시 보기</button>`:''}
  ${readHtml()}
  <h2 class="part"><span>오늘 방송표</span></h2><ul class="sched">${lst}</ul>
  <p class="rhelp">같은 시간에는 모두 같은 방송을 함께 듣습니다. 낭독은 정해진 시각에 먼저 나오고, 놓친 회는 「지난 회」에서 들을 수 있습니다.</p></section>`}
+// 지난 방송 다시 보기: radio.json days 가운데 오늘 전 날짜(최근 7일)
+function pastDays(){const k=dayKey(new Date()),D=RD().days||{};return Object.keys(D).filter(x=>x<k).sort().reverse().slice(0,7)}
+function pastList(){const R=RD(),T=CAT.albums[0]?.tracks||[],tr=n=>T.find(t=>String(t.n)===String(n)),W='일월화수목금토';
+ let h=`<div class="tlist rpast"><h3>지난 방송 다시 보기</h3><p class="rclsrc">최근 ${pastDays().length}일의 인사·말씀·진행자의 말</p>`;
+ for(const k of pastDays()){const d=R.days[k],[y,m,dd]=k.split('-').map(Number),th=R.themes.find(t=>t.id===d.theme),vt=tr(d.verse);
+  h+=`<details><summary><b>${m}월 ${dd}일 (${W[new Date(y,m-1,dd).getDay()]})</b> ${esc(d.title||'')}${th?` <small>${esc(th.name)}</small>`:''}</summary>`
+   +(d.greeting?`<p>${esc(d.greeting)}</p>`:'')+(vt&&vt.verse?`<blockquote><small>그날의 말씀</small>${esc(vt.verse)}</blockquote>`:'')
+   +`<ol>${(d.order||[]).map(n=>{const t=tr(n);return `<li><b>${t?esc(label({...t,album:CAT.albums[0]})):n}</b>${d.notes&&d.notes[String(n)]?`<span>${esc(d.notes[String(n)])}</span>`:''}</li>`}).join('')}</ol></details>`}
+ sheet(h+`<button class="pill" data-close>닫기</button></div>`)}
+document.addEventListener('click',e=>{if(e.target.closest('[data-rpast]'))pastList()});
 function talkList(id){const T=talkOf(id);if(!T)return;const n=Math.min(talkN(T),T.eps.length-1);
  let h=`<div class="tlist"><h3>${esc(T.book)}</h3><p class="rclsrc">${esc(T.name)} · 다시 듣기</p><ol>`;
  for(let i=n;i>=0;i--)if(talkReady(T,i))h+=`<li><button class="bref" data-talk="play|${id}|${i}"><small>${i+1}회</small> ${esc(T.eps[i].t)}</button></li>`;
